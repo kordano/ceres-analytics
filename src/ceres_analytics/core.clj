@@ -3,11 +3,12 @@
   (:require [monger.collection :as mc]
             [clj-time.core :as t]
             [clj-time.periodic :as p]
+            [clj-time.format :as f]
             [monger.core :as mg]
             [monger.joda-time]
-            [clj-time.format :as f]
             [monger.operators :refer :all]
             [monger.query :refer :all]))
+
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options :threads-allowed-to-block-for-connection-multiplier 300)
@@ -36,10 +37,11 @@
 
 (comment
 
+  (->> @degrees count time)
 
   (->> (mc/find-maps @db "publications" {:ts {$gt (t/date-time 2015 2 15)}
-                                     :type :share})
-       (map #(mc/find-one-as-map @db "reactions" {:publication (:_id %)}))
-       )
+                                         :type :share})
+       (map #(mc/find-one-as-map @db "reactions" {:publication (:_id %)})))
+
 
   )
