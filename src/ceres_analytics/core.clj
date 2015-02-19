@@ -39,8 +39,7 @@
 
   (->> @degrees count time)
 
-  (->> (mc/find-maps @db "publications" {:ts {$gt (t/date-time 2015 2 15)}
-                                         :type :share})
+  (->> (mc/find-maps @db "publications" {:ts {$gt (t/date-time 2015 2 15)} :type :share})
        (map #(mc/find-one-as-map @db "reactions" {:publication (:_id %)})))
 
 

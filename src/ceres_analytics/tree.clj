@@ -119,6 +119,7 @@
           (map (fn [[k v]] [(:screen_name (mc/find-map-by-id @db "users" k))
                            v])))]))
 
+
 (defn create-d3-graph
   "Converts zipper into d3 readable format"
   [tree]
