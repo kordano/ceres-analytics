@@ -18,7 +18,7 @@
             [incanter.core :refer [view]]
             [incanter.stats :refer [mean variance quantile]]
             [incanter.charts :as charts]
-            [ceres-analytics.core :refer [db custom-formatter news-accounts]])
+            [ceres-analytics.core :refer [db custom-formatter news-accounts suids]])
  (:import org.bson.types.ObjectId))
 
 (defrecord Publication [source reactions])
@@ -147,3 +147,42 @@
              links)
            (zip/next loc)))
         (recur counter types nodes texts links (zip/next loc))))))
+
+(def tree-summaries
+    (future
+      (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
+           (pmap (comp tree-summary reaction-tree :_id)))))
+
+
+(comment
+
+
+  (->>  (sort-by :size > tree-summaries)
+        (take 50)
+        (pmap (fn [{:keys [source height size]}]
+                [height size
+                 (->> source
+                      (mc/find-map-by-id @db "publications")
+                      :tweet
+                      (mc/find-map-by-id @db "tweets"))]))
+        (pmap (fn [[height size {:keys [text user]}]]
+                [(:screen_name user) text size height ((comp float /) height size)]))
+        aprint)
+
+  (->>  (sort-by :height > tree-summaries)
+        (take 50)
+        (pmap (fn [{:keys [source height size]}]
+                [height size
+                 (->> source
+                      (mc/find-map-by-id @db "publications")
+                      :tweet
+                      (mc/find-map-by-id @db "tweets"))]))
+        (pmap (fn [[height size {:keys [text user]}]]
+                [(:screen_name user) text size height ((comp float /) height size)]))
+        aprint)
+
+  (->> tree-summaries
+       (pmap (fn [{:keys [size height]}] ((comp float /) height size)))
+       )
+
+  )
