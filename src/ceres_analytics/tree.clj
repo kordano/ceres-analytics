@@ -58,7 +58,7 @@
    (find-full-reactions pub)))
 
 
-(defn summary [tree]
+(defn tree-summary [tree]
   (loop [size 0
          max-path 0
          loc tree]
