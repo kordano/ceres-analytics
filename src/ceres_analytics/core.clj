@@ -41,6 +41,15 @@
                   (map (fn [{:keys [_id screen_name]}] [_id screen_name ]) )
                   (into {})))
 
+(def start-date (t/date-time 2014 8 1))
+(def end-date (t/date-time 2014 10 1))
+(def days-running (t/in-days (t/interval start-date end-date)))
+(def dates (take days-running (p/periodic-seq start-date (t/days 1))))
+(def source-publications (mc/find-maps @db "publications" {:user {$in (keys suids)}
+                                                           :ts time-interval}))
+(def user-publications (mc/find-maps @db "publications" {:user {$nin (keys suids)}}))
+(def dbs ["publications" "reactions" "hashtags" "users" "mentions" "urls" "htmls"])
+
 
 (comment
 
@@ -50,13 +59,11 @@
        (map #(mc/find-one-as-map @db "reactions" {:publication (:_id %)})))
 
 
-
-
   (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
        (pmap :user)
        frequencies
-       (map (fn [[k v]] [(suids k) v]))
-       )
+       (map (fn [[k v]] [(suids k) v])))
+
 
   (mc/count @db "publications" {:user {$in (keys suids)}})
   (mc/count @db "publications" {:user {$nin (keys suids)}})

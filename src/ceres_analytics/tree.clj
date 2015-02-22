@@ -157,7 +157,7 @@
 (comment
 
 
-  (->>  (sort-by :size > tree-summaries)
+  (->>  (sort-by :size > @tree-summaries)
         (take 50)
         (pmap (fn [{:keys [source height size]}]
                 [height size
@@ -169,7 +169,7 @@
                 [(:screen_name user) text size height ((comp float /) height size)]))
         aprint)
 
-  (->>  (sort-by :height > tree-summaries)
+  (->>  (sort-by :height > @tree-summaries)
         (take 50)
         (pmap (fn [{:keys [source height size]}]
                 [height size
@@ -181,8 +181,21 @@
                 [(:screen_name user) text size height ((comp float /) height size)]))
         aprint)
 
-  (->> tree-summaries
-       (pmap (fn [{:keys [size height]}] ((comp float /) height size)))
-       )
+  (->> @tree-summaries
+       (pmap (fn [{:keys [size height]}] [size ((comp float /) height size)]))
+       (sort-by second >)
+       (take 50))
+
+
+  (def full-summaries
+    (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
+         (pmap (comp full-reaction-tree :_id))
+         vec
+         time))
+
+  (->> full-summaries
+       (pmap analyze-delays)
+       time)
+
 
   )
