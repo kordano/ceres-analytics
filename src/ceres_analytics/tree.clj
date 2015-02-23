@@ -153,7 +153,6 @@
 (def full-summaries
     (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
          (pmap (comp analyze-delays full-reaction-tree :_id))
-         time
          future))
 
 
