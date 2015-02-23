@@ -153,6 +153,11 @@
       (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
            (pmap (comp tree-summary reaction-tree :_id)))))
 
+(def full-summaries
+    (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
+         (pmap (comp analyze-delays full-reaction-tree :_id))
+         time
+         future))
 
 (comment
 
@@ -185,17 +190,5 @@
        (pmap (fn [{:keys [size height]}] [size ((comp float /) height size)]))
        (sort-by second >)
        (take 50))
-
-
-  (def full-summaries
-    (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-         (pmap (comp full-reaction-tree :_id))
-         vec
-         time))
-
-  (->> full-summaries
-       (pmap analyze-delays)
-       time)
-
 
   )
