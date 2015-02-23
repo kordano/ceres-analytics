@@ -4,7 +4,7 @@
             [clj-time.core :as t]
             [clj-time.periodic :as p]
             [clj-time.format :as f]
-            [incanter.stats :refer [mean sd quantile]]
+            [incanter.stats :refer [mean sd quantile variance ]]
             [aprint.core :refer [aprint]]
             [monger.core :as mg]
             [monger.joda-time]
@@ -50,6 +50,10 @@
 (def user-publications (mc/find-maps @db "publications" {:user {$nin (keys suids)}}))
 (def dbs ["publications" "reactions" "hashtags" "users" "mentions" "urls" "htmls"])
 
+(defn short-metrics [coll]
+  {:mean (mean coll)
+   :std (sd coll)
+   :quantiles (quantile coll :probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0])})
 
 (comment
 
