@@ -96,9 +96,7 @@
        :hashtags hashtags}
       (recur
        (if-let [node (zip/node loc)]
-         (if-let [node-hts (get-in node [:source :hashtags])]
-           (apply conj hashtags node-hts)
-           hashtags)
+         (conj hashtags [(get-in node [:source :ts]) (get-in node [:source :hashtags])])
          hashtags)
        (zip/next loc)))))
 
@@ -203,8 +201,10 @@
        (take 50))
 
 
-  (->> @full-summaries
+  (->> @tree-summaries
        (pmap analyze-hashtags)
-       )
+       time)
+
+
 
   )

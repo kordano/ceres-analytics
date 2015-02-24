@@ -53,7 +53,8 @@
 (defn short-metrics [coll]
   {:mean (mean coll)
    :std (sd coll)
-   :quantiles (quantile coll :probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0])})
+   :quantiles (let [probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0]]
+                (zipmap probs (quantile coll :probs probs)))})
 
 (comment
 
@@ -72,5 +73,6 @@
   (mc/count @db "publications" {:user {$in (keys suids)}})
   (mc/count @db "publications" {:user {$nin (keys suids)}})
 
+  (zipmap [1 2 3] [4 4 5])
 
   )
