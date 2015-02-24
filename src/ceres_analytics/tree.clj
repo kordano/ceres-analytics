@@ -24,8 +24,6 @@
 (defrecord Publication [source reactions])
 
 
-
-
 (defn find-reactions [pid]
   (let [reactions (mc/find-maps @db "reactions" {:source pid})]
     (Publication. pid (vec (pmap #(find-reactions (:publication %)) reactions)))))
@@ -85,6 +83,23 @@
                             (t/interval (-> loc zip/node :source :ts) pub-time))]
            (conj delays (t/in-seconds post-delay)))
          delays)
+       (zip/next loc)))))
+
+
+(defn analyze-hashtags
+  "Analyze hashtag development in tree"
+  [tree]
+  (loop [hashtags []
+         loc tree]
+    (if (zip/end? loc)
+      {:source (-> (zip/root tree) :source :_id)
+       :hashtags hashtags}
+      (recur
+       (if-let [node (zip/node loc)]
+         (if-let [node-hts (get-in node [:source :hashtags])]
+           (apply conj hashtags node-hts)
+           hashtags)
+         hashtags)
        (zip/next loc)))))
 
 
@@ -152,7 +167,7 @@
 
 (def full-summaries
     (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-         (pmap (comp analyze-delays full-reaction-tree :_id))
+         (pmap (comp full-reaction-tree :_id))
          future))
 
 
@@ -186,5 +201,10 @@
        (pmap (fn [{:keys [size height]}] [size ((comp float /) height size)]))
        (sort-by second >)
        (take 50))
+
+
+  (->> @full-summaries
+       (pmap analyze-hashtags)
+       )
 
   )
