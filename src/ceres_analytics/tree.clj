@@ -201,10 +201,8 @@
        (take 50))
 
 
-  (->> @tree-summaries
+  (->> @full-summaries
        (pmap analyze-hashtags)
        time)
-
-
 
   )

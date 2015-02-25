@@ -56,23 +56,7 @@
    :quantiles (let [probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0]]
                 (zipmap probs (quantile coll :probs probs)))})
 
+
 (comment
-
-  (->> @degrees count time)
-
-  (->> (mc/find-maps @db "publications" {:ts {$gt (t/date-time 2015 2 15)} :type :share})
-       (map #(mc/find-one-as-map @db "reactions" {:publication (:_id %)})))
-
-
-  (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-       (pmap :user)
-       frequencies
-       (map (fn [[k v]] [(suids k) v])))
-
-
-  (mc/count @db "publications" {:user {$in (keys suids)}})
-  (mc/count @db "publications" {:user {$nin (keys suids)}})
-
-  (zipmap [1 2 3] [4 4 5])
 
   )
