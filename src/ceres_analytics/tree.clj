@@ -15,9 +15,7 @@
             [clj-time.periodic :as p]
             [clojure.pprint :refer [pprint]]
             [opennlp.nlp :refer [make-tokenizer make-detokenizer]]
-            [incanter.core :refer [view]]
             [incanter.stats :refer [mean variance quantile]]
-            [incanter.charts :as charts]
             [ceres-analytics.core :refer [db custom-formatter news-accounts suids]])
  (:import org.bson.types.ObjectId))
 
@@ -164,9 +162,9 @@
            (pmap (comp tree-summary reaction-tree :_id)))))
 
 (def full-summaries
+  (future
     (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-         (pmap (comp full-reaction-tree :_id))
-         future))
+         (pmap (comp full-reaction-tree :_id)))))
 
 
 (comment
@@ -204,5 +202,17 @@
   (->> @full-summaries
        (pmap analyze-hashtags)
        time)
+
+
+
+  (->> (mc/find-maps @db "publications" {:type :share})
+       (pmap (fn [{:keys [tweet]}] (->> (mc/find-map-by-id @db "tweets" tweet)
+                                       :text
+                                       (re-find #" via @"))))
+       (remove nil?)
+       count
+       )
+
+  (mc/count @db "publications" {:type :share})
 
   )
