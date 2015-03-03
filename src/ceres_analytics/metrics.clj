@@ -27,15 +27,19 @@
 (defn dijkstra
   "Dijkstra on social news graph"
   [start]
-  (loop [q (priority-map start 0)
+  (loop [q (priority-map [start "source"] 0)
          r {}]
     (if-let [[v d] (peek q)]
-      (let [n (map :_id (mc/find-maps @db "refs" {:target v :type ["retweet" "reply" "share" "pub"]}))
+      (let [n (map (fn [{:keys [source type]}] [source type]) (mc/find-maps @db "refs" {:target (first v) :type {$in ["retweet" "reply" "share" "pub"]}}))
             dist (zipmap n (repeat (count n) (inc d)))]
         (recur
-         (merge-with min q dist)
+         (merge-with min (pop q) dist)
          (assoc r v d)))
       r)))
+
+
+(defn type-distribution []
+  (map #(mc/count @db "refs" {:type %}) ["share" "unrelated" "source" "reply" "retweet"]))
 
 
 (comment
@@ -52,6 +56,17 @@
        frequencies
        aprint)
 
-  (mc/count @db "refs")
+  (->> users
+       (map #(mc/count @db "refs" {:source (:_id %)})))
+
+
+  (let [vs (mc/find-maps @db "refs" {:source {$in (map :_id users)}})]
+    (->> (map (fn [{:keys [target]}] [target (dijkstra target)]) vs)
+         count
+         time
+         ))
+
+
+  (repeat (count '()) (inc 0))
 
   )
