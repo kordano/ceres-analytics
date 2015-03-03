@@ -19,12 +19,14 @@
             [ceres-analytics.core :refer [db custom-formatter news-accounts suids]])
  (:import org.bson.types.ObjectId))
 
-(defrecord Publication [source reactions])
+(defrecord Message [source reactions])
 
 
 (defn find-reactions [pid]
-  (let [reactions (mc/find-maps @db "reactions" {:source pid})]
-    (Publication. pid (vec (pmap #(find-reactions (:publication %)) reactions)))))
+  (let [reactions (mc/find-maps @db "refs" {:target pid
+                                            :type {$in ["reply" "share" "retweet"]}})]
+    reactions
+    #_(Message. pid (vec (pmap #(find-reactions (:source %)) reactions)))))
 
 
 (defn reaction-tree [pub]
@@ -40,7 +42,7 @@
   [pid]
   (let [publication (mc/find-map-by-id @db "publications" pid)
         reactions (mc/find-maps @db "reactions" {:source pid})]
-    (Publication. publication (vec (pmap #(find-full-reactions (:publication %)) reactions)))))
+    (Message. publication (vec (pmap #(find-full-reactions (:publication %)) reactions)))))
 
 
 (defn full-reaction-tree [pub]
@@ -99,33 +101,8 @@
        (zip/next loc)))))
 
 
-(defn hashtags-of-the-day [date]
-  (let [pubs (mc/find-maps @db "publications" {:ts {$gt date
-                                                    $lt (t/plus date (t/days 1))}})]
-    (->> pubs
-         (map :hashtags)
-         flatten
-         (remove nil?)
-         (pmap #(mc/find-map-by-id @db "hashtags" %))
-         (pmap :text)
-         frequencies
-         (sort-by second >)
-         (take 25))))
 
 
-(defn users-of-the-day
-  "Get user with most posts of given date"
-  [date]
-  (let [pubs (mc/find-maps @db "publications" {:ts {$gt date
-                                                    $lt (t/plus date (t/days 1))}})]
-    [(count pubs)
-     (->> pubs
-          (map :user)
-          frequencies
-          (sort-by second >)
-          (take 25)
-          (map (fn [[k v]] [(:screen_name (mc/find-map-by-id @db "users" k))
-                           v])))]))
 
 
 (defn create-d3-graph
@@ -169,50 +146,21 @@
 
 (comment
 
-  (->>  (sort-by :size > @tree-summaries)
-        (take 50)
-        (pmap (fn [{:keys [source height size]}]
-                [height size
-                 (->> source
-                      (mc/find-map-by-id @db "publications")
-                      :tweet
-                      (mc/find-map-by-id @db "tweets"))]))
-        (pmap (fn [[height size {:keys [text user]}]]
-                [(:screen_name user) text size height ((comp float /) height size)]))
-        aprint)
-
-  (->>  (sort-by :height > @tree-summaries)
-        (take 50)
-        (pmap (fn [{:keys [source height size]}]
-                [height size
-                 (->> source
-                      (mc/find-map-by-id @db "publications")
-                      :tweet
-                      (mc/find-map-by-id @db "tweets"))]))
-        (pmap (fn [[height size {:keys [text user]}]]
-                [(:screen_name user) text size height ((comp float /) height size)]))
-        aprint)
-
-  (->> @tree-summaries
-       (pmap (fn [{:keys [size height]}] [size ((comp float /) height size)]))
-       (sort-by second >)
-       (take 50))
+  (let [spon (mc/find-one-as-map @db "users" {:name "BILD"})]
+    (->> {:source (:_id spon)}
+         (mc/find-maps @db "refs")
+         (map (comp find-reactions :target))
+         aprint))
 
 
-  (->> @full-summaries
-       (pmap analyze-hashtags)
-       time)
-
-
-
-  (->> (mc/find-maps @db "publications" {:type :share})
-       (pmap (fn [{:keys [tweet]}] (->> (mc/find-map-by-id @db "tweets" tweet)
-                                       :text
-                                       (re-find #" via @"))))
+  (->> (mc/find-maps @db "refs" {:type "share"})
+       (map :target)
        (remove nil?)
-       count
-       )
+       frequencies)
 
-  (mc/count @db "publications" {:type :share})
+
+  (->> (mc/find-maps @db "messages" {:tid {$ne nil}}))
+
+
 
   )
