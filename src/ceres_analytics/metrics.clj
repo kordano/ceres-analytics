@@ -13,6 +13,7 @@
             [aprint.core :refer [aprint]]
             [monger.query :refer :all]))
 
+
 (defn in-degree
   "doc-string"
   [{:keys [_id]}]
@@ -23,24 +24,19 @@
   [{:keys [_id]}]
   (mc/count @db "refs" {:source _id}))
 
-
-
-(defn map-vals [m f]
-  (into {} (for [[k v] m] [k (f v)])))
-
-(defn remove-keys [m pred]
-  (->> (keys m)
-       (filter (complement pred))
-       (select-keys m)))
-
 (defn dijkstra
-  "Code from http://www.ummels.de/2014/06/08/dijkstra-in-clojure/"
-  [start f]
-  (loop [q (priority-map start 0) r {}]
+  "Dijkstra on social news graph"
+  [start]
+  (loop [q (priority-map start 0)
+         r {}]
     (if-let [[v d] (peek q)]
-      (let [dist (-> (f v) (remove-keys r) (map-vals (partial + d)))]
-        (recur (merge-with min (pop q) dist) (assoc r v d)))
+      (let [n (map :_id (mc/find-maps @db "refs" {:target v :type ["retweet" "reply" "share" "pub"]}))
+            dist (zipmap n (repeat (count n) (inc d)))]
+        (recur
+         (merge-with min q dist)
+         (assoc r v d)))
       r)))
+
 
 (comment
 
@@ -56,5 +52,6 @@
        frequencies
        aprint)
 
+  (mc/count @db "refs")
 
   )

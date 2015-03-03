@@ -146,21 +146,13 @@
 
 (comment
 
-  (let [spon (mc/find-one-as-map @db "users" {:name "BILD"})]
-    (->> {:source (:_id spon)}
-         (mc/find-maps @db "refs")
-         (map (comp find-reactions :target))
-         aprint))
+
+  (def users (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
 
-  (->> (mc/find-maps @db "refs" {:type "share"})
-       (map :target)
-       (remove nil?)
-       frequencies)
-
-
-  (->> (mc/find-maps @db "messages" {:tid {$ne nil}}))
-
+  (->> (mc/find-maps @db "refs" {:type "retweet" :target {$ne nil}})
+       (take 10)
+       aprint)
 
 
   )
