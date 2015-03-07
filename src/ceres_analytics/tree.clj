@@ -25,8 +25,7 @@
 (defn find-reactions [pid]
   (let [reactions (mc/find-maps @db "refs" {:target pid
                                             :type {$in ["reply" "share" "retweet"]}})]
-    reactions
-    #_(Message. pid (vec (pmap #(find-reactions (:source %)) reactions)))))
+    (Message. pid (vec (pmap #(find-reactions (:source %)) reactions)))))
 
 
 (defn reaction-tree [pub]
@@ -101,10 +100,6 @@
        (zip/next loc)))))
 
 
-
-
-
-
 (defn create-d3-graph
   "Converts zipper into d3 readable format"
   [tree]
@@ -148,11 +143,6 @@
 
 
   (def users (mc/find-maps @db "users" {:name {$in news-accounts}}))
-
-
-  (->> (mc/find-maps @db "refs" {:type "retweet" :target {$ne nil}})
-       (take 10)
-       aprint)
 
 
   )

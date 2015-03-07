@@ -24,17 +24,35 @@
   [{:keys [_id]}]
   (mc/count @db "refs" {:source _id}))
 
+
+(defn normalized-degree
+  [v]
+  ((comp float /)
+   (+ (in-degree v) (out-degree v))
+   (reduce + (map #(mc/count @db %) ["users" "tags" "urls" "messages"]))))
+
+
+(defn find-neighbors [[id t]]
+  (if (=  t "pub")
+    (map
+     (fn [{:keys [source type]}] [source type])
+     (mc/find-maps @db "refs" {:source id :type "pub"}))
+    (map
+     (fn [{:keys [source type]}] [source type])
+     (mc/find-maps @db "refs" {:target id :type {$in ["retweet" "reply" "share" "pub"]}}))))
+
+
 (defn dijkstra
   "Dijkstra on social news graph"
   [start]
   (loop [q (priority-map [start "source"] 0)
          r {}]
     (if-let [[v d] (peek q)]
-      (let [n (map (fn [{:keys [source type]}] [source type]) (mc/find-maps @db "refs" {:target (first v) :type {$in ["retweet" "reply" "share" "pub"]}}))
+      (let [n (remove #(contains? r (first %)) (find-neighbors v))
             dist (zipmap n (repeat (count n) (inc d)))]
         (recur
          (merge-with min (pop q) dist)
-         (assoc r v d)))
+         (assoc r (first v) [(second v) d])))
       r)))
 
 
@@ -46,27 +64,21 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
+  (def refs ["pub" "reply" "retweet" "share"])
+
   (reduce + (map #(mc/count @db %) ["users" "messages" "tweets" "htmls" "urls" "tags"]))
 
-  (map #(mc/count @db "refs" {:type %}) ["pub" "reply" "retweet" "share"])
 
-
-  (->> (mc/find-maps @db "refs")
-       (map :type)
-       frequencies
-       aprint)
+  (->> refs
+       (map (fn [ref] [ref (mc/count @db "refs" {:type ref})]) )
+       time
+       aprint
+       )
 
   (->> users
-       (map #(mc/count @db "refs" {:source (:_id %)})))
+       (pmap (fn [{:keys [_id name]}] [name (mc/find-maps @db "refs" {:source _id})]))
+       (pmap (fn [[n r]] [n (frequencies (map #(t/hour (:ts %)) r))]))
+       aprint)
 
-
-  (let [vs (mc/find-maps @db "refs" {:source {$in (map :_id users)}})]
-    (->> (map (fn [{:keys [target]}] [target (dijkstra target)]) vs)
-         count
-         time
-         ))
-
-
-  (repeat (count '()) (inc 0))
 
   )
