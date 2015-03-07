@@ -64,21 +64,18 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
-  (def refs ["pub" "reply" "retweet" "share"])
+  (def refs ["pub" "reply" "retweet" "share" "tag"])
 
-  (reduce + (map #(mc/count @db %) ["users" "messages" "tweets" "htmls" "urls" "tags"]))
+  (def dbs ["users" "messages" "tweets" "htmls" "urls" "tags" "refs"])
 
 
-  (->> refs
-       (map (fn [ref] [ref (mc/count @db "refs" {:type ref})]) )
-       time
-       aprint
-       )
+  (let [ref-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref})]) refs))
+        ref-nil-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref :target nil})]) refs))
+        ]
+    (aprint [ref-counts ref-nil-counts (merge-with (comp float /) ref-nil-counts ref-counts)]))
 
-  (->> users
-       (pmap (fn [{:keys [_id name]}] [name (mc/find-maps @db "refs" {:source _id})]))
-       (pmap (fn [[n r]] [n (frequencies (map #(t/hour (:ts %)) r))]))
-       aprint)
+
+
 
 
   )

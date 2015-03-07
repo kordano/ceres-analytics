@@ -42,8 +42,10 @@
 
   (let [uid (-> users first :_id)]
     (->> {:source uid}
-         (mc/find-maps @db "refs" )
-         (map (comp #(mc/find-map-by-id @db "messages") :target))))
+         (mc/find-maps @db "refs")
+         (map (comp (fn [{:keys [_id]}] (map :type (mc/find-maps @db "refs" {:target _id})))
+                    (fn [{:keys [target]}] (mc/find-map-by-id @db "messages" target))))
+         aprint))
 
 
   )
