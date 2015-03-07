@@ -9,15 +9,16 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
-                 [clj-time "0.7.0"]
+                 [clj-time "0.9.0"]
                  [enlive "1.1.5"]
                  [gg4clj "0.1.0"]
                  [cheshire "5.4.0"]
-                 [com.datomic/datomic-free "0.9.4899"]
-                 [com.novemberain/monger "2.0.0-rc1"]
-                 [incanter "1.5.5"]
-                 [clojure-opennlp "0.3.2"]
-                 [aprint "0.1.0"]]
+                 [com.datomic/datomic-free "0.9.5130"]
+                 [com.novemberain/monger "2.1.0"]
+                 [incanter "1.9.0"]
+                 [clojurewerkz/neocons "3.0.0"]
+                 [clojure-opennlp "0.3.3"]
+                 [aprint "0.1.3"]]
 
   :main ceres-analytics.core
 
