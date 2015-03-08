@@ -20,12 +20,16 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
+  (def all-users (mc/find-maps @db "users"))
+
+  (count all-users)
+
   (def user->neo
     (doall
      (map
       (fn [{:keys [_id name ts]}]
         (nn/create conn {:name name :mongo-id (str _id) :ts ts}))
-      users)))
+      all-users)))
 
   (map
    (fn [{:keys [id data]}]
@@ -37,7 +41,7 @@
        (doall (map #(nrl/create conn id (:id %) :PUBLISHES) neo-ids))))
    user->neo)
 
-  (cy/tquery conn "MATCH u-[:PUBLISHES]->(m) RETURN u.name,count(m);")
+  (cy/tquery conn "MATCH u-[:PUBLISHES]->(m) RETURN u.name,count(m) ORDER BY count(m) DESC LIMIT 20;")
 
 
   (let [uid (-> users first :_id)]

@@ -74,7 +74,21 @@
     (aprint [ref-counts (merge-with (comp float /) ref-nil-counts ref-counts)]))
 
 
+  (->> (mc/find-maps @db "refs")
+       (map :source)
+       frequencies
+       (map second)
+       frequencies
+       aprint
+       )
 
+
+  (->> users
+       (map
+        (fn [{:keys [name _id]}]
+          [name (mc/count @db "refs" {:source _id :type "pub"})]))
+       (into {})
+       aprint)
 
 
   )

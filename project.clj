@@ -18,7 +18,7 @@
                  [incanter "1.9.0"]
                  [clojurewerkz/neocons "3.0.0"]
                  [clojure-opennlp "0.3.3"]
-                 [aprint "0.1.3"]]
+                 [aprint "0.1.5"]]
 
   :main ceres-analytics.core
 
