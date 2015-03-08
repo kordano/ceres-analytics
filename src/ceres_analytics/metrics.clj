@@ -56,10 +56,6 @@
       r)))
 
 
-(defn type-distribution []
-  (map #(mc/count @db "refs" {:type %}) ["share" "unrelated" "source" "reply" "retweet"]))
-
-
 (comment
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
@@ -68,11 +64,14 @@
 
   (def dbs ["users" "messages" "tweets" "htmls" "urls" "tags" "refs"])
 
+  (->> dbs
+       (map (fn [d] [d (mc/count @db d)]))
+       (into {})
+       aprint)
 
   (let [ref-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref})]) refs))
-        ref-nil-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref :target nil})]) refs))
-        ]
-    (aprint [ref-counts ref-nil-counts (merge-with (comp float /) ref-nil-counts ref-counts)]))
+        ref-nil-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref :target nil})]) refs))]
+    (aprint [ref-counts (merge-with (comp float /) ref-nil-counts ref-counts)]))
 
 
 

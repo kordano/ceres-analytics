@@ -9,8 +9,7 @@
             [monger.core :as mg]
             [monger.joda-time]
             [monger.operators :refer :all]
-            [monger.query :refer :all])
-  )
+            [monger.query :refer :all]))
 
 
 (def db (atom
