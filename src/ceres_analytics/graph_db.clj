@@ -22,7 +22,6 @@
 
   (def all-users (mc/find-maps @db "users"))
 
-  (count all-users)
 
   (def user->neo
     (doall
@@ -31,15 +30,19 @@
         (nn/create conn {:name name :mongo-id (str _id) :ts ts}))
       all-users)))
 
-  (map
-   (fn [{:keys [id data]}]
-     (let [messages (doall (pmap (fn [{:keys [target]}]
-                                   (mc/find-map-by-id @db "messages" target))
-                                 (mc/find-maps @db "refs" {:source (ObjectId. (data :mongo-id))})))
-           neo-ids (doall (map (fn [{:keys [_id text ts]}] (nn/create conn {:text text :mongo-id (str _id) :ts ts})) messages))]
-       (println neo-ids)
-       (doall (map #(nrl/create conn id (:id %) :PUBLISHES) neo-ids))))
-   user->neo)
+  (def message->neo
+    (map
+     (fn [{:keys [id data]}]
+       (let [messages (doall (pmap (fn [{:keys [target]}]
+                                     (mc/find-map-by-id @db "messages" target))
+                                   (mc/find-maps @db "refs" {:source (ObjectId. (data :mongo-id))})))
+             neo-ids (doall (map (fn [{:keys [_id text ts]}] (nn/create conn {:text text :mongo-id (str _id) :ts ts})) messages))]
+         (println (count neo-ids))
+         (doall (map #(nrl/create conn id (:id %) :PUBLISHES) neo-ids))))
+     user->neo))
+
+
+  (count message->neo)
 
   (cy/tquery conn "MATCH u-[:PUBLISHES]->(m) RETURN u.name,count(m) ORDER BY count(m) DESC LIMIT 20;")
 
