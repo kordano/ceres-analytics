@@ -17,6 +17,9 @@
                  [com.novemberain/monger "2.1.0"]
                  [incanter "1.9.0"]
                  [clojurewerkz/neocons "3.0.0"]
+                 [net.sf.jung/jung-algorithms "2.0.1"]
+                 [net.sf.jung/jung-api "2.0.1"]
+                 [net.sf.jung/jung-graph-impl "2.0.1"]
                  [clojure-opennlp "0.3.3"]
                  [aprint "0.1.3"]]
 
