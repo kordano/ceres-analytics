@@ -13,22 +13,24 @@
             [aprint.core :refer [aprint]]
             [monger.query :refer :all]))
 
+(def refs ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown" "pubs"])
 
 (defn in-degree
   "doc-string"
   [{:keys [_id]}]
-  (mc/count @db "refs" {:target _id}))
+  (into {} (map (fn [c] [c (mc/count @db c {:target _id})]) refs)))
+
 
 (defn out-degree
   "doc-string"
   [{:keys [_id]}]
-  (mc/count @db "refs" {:source _id}))
+  (into {} (map (fn [c] [c (mc/count @db c {:source _id})]) refs)))
 
 
 (defn normalized-degree
-  [v]
+  [v coll]
   ((comp float /)
-   (+ (in-degree v) (out-degree v))
+   (merge + (in-degree v) (out-degree v))
    (reduce + (map #(mc/count @db %) ["users" "tags" "urls" "messages"]))))
 
 
@@ -60,35 +62,20 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
-  (def refs ["pub" "reply" "retweet" "share" "tag"])
-
-  (def dbs ["users" "messages" "tweets" "htmls" "urls" "tags" "refs"])
+  (def dbs ["users" "messages" "tweets" "htmls" "urls" "tags" "mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
   (->> dbs
        (map (fn [d] [d (mc/count @db d)]))
        (into {})
        aprint)
 
-  (let [ref-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref})]) refs))
-        ref-nil-counts (into {} (map (fn [ref] [ref (mc/count @db "refs" {:type ref :target nil})]) refs))]
-    (aprint [ref-counts (merge-with (comp float /) ref-nil-counts ref-counts)]))
-
-
-  (->> (mc/find-maps @db "refs")
-       (map :source)
-       frequencies
-       (map second)
-       frequencies
-       aprint
-       )
-
-
   (->> users
        (map
-        (fn [{:keys [name _id]}]
-          [name (mc/count @db "refs" {:source _id :type "pub"})]))
+        (fn [{:keys [name _id] :as n}]
+          {:name name
+           :in (in-degree n)
+           :out (out-degree n)}))
        (into {})
        aprint)
-
 
   )
