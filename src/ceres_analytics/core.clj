@@ -9,7 +9,10 @@
             [monger.core :as mg]
             [monger.joda-time]
             [monger.operators :refer :all]
-            [monger.query :refer :all]))
+            [monger.query :refer :all])
+  (:import [edu.uci.ics.jung.graph DirectedSparseGraph]
+           [edu.uci.ics.jung.graph.util EdgeType]
+           [edu.uci.ics.jung.algorithms.metrics Metrics StructuralHoles TriadicCensus]))
 
 
 (def db (atom
@@ -56,7 +59,6 @@
    :quantiles (let [probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0]]
                 (zipmap probs (quantile coll :probs probs)))})
 
+(def nodes ["users" "messages" "htmls" "urls" "tags" ])
 
-(comment
-
-  )
+(def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])

@@ -3,6 +3,7 @@
   (:require [clojurewerkz.neocons.rest :as nr]
             [clojurewerkz.neocons.rest.nodes :as nn]
             [clojurewerkz.neocons.rest.relationships :as nrl]
+            [clojurewerkz.neocons.rest.labels :as nl]
             [clojurewerkz.neocons.rest.cypher :as cy]
             [monger.collection :as mc]
             [ceres-analytics.core :refer [db news-accounts]]
@@ -15,6 +16,9 @@
 
 (def conn (nr/connect "http://localhost:7474/db/data"))
 
+(defn drop-database [conn]
+  (cy/tquery conn "MATCH (n) OPTIONAL MATCH (n)-[r]-() DELETE n,r"))
+
 
 (comment
 
@@ -25,22 +29,28 @@
 
   (def user->neo
     (doall
-     (map
+     (pmap
       (fn [{:keys [_id name ts]}]
-        (nn/create conn {:name name :mongo-id (str _id) :ts ts}))
-      all-users)))
+        (let [node (nn/create conn {:name name :mongo-id (str _id) :ts ts})]
+          (nl/add conn node "Agent"))
+        all-users))))
 
   (def message->neo
-    (map
+    (pmap
      (fn [{:keys [id data]}]
        (let [messages (doall (pmap (fn [{:keys [target]}]
                                      (mc/find-map-by-id @db "messages" target))
                                    (mc/find-maps @db "refs" {:source (ObjectId. (data :mongo-id))})))
-             neo-ids (doall (map (fn [{:keys [_id text ts]}] (nn/create conn {:text text :mongo-id (str _id) :ts ts})) messages))]
-         (println (count neo-ids))
-         (doall (map #(nrl/create conn id (:id %) :PUBLISHES) neo-ids))))
+             neo-messages (doall
+                           (pmap
+                            (fn [{:keys [_id text ts]}]
+                              (nn/create conn {:text text
+                                               :mongo-id (str _id)
+                                               :ts ts}))
+                            messages))]
+         (pmap #(nl/add conn % "Message") neo-messages)
+         (doall (map #(nrl/create conn id (:id %) :PUBLISHES) neo-messages))))
      user->neo))
-
 
   (count message->neo)
 
@@ -54,5 +64,8 @@
                     (fn [{:keys [target]}] (mc/find-map-by-id @db "messages" target))))
          aprint))
 
+
+
+  (drop-database conn)
 
   )

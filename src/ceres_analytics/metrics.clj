@@ -62,20 +62,16 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
-  (def dbs ["users" "messages" "tweets" "htmls" "urls" "tags" "mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
+  (->> nodes (map (fn [d] [d (mc/count @db d)])) (into {}) aprint)
 
-  (->> dbs
-       (map (fn [d] [d (mc/count @db d)]))
-       (into {})
-       aprint)
+  (->> links (map (fn [d] [d (mc/count @db d)])) (into {}) aprint)
 
-  (->> users
-       (map
-        (fn [{:keys [name _id] :as n}]
-          {:name name
-           :in (in-degree n)
-           :out (out-degree n)}))
-       (into {})
-       aprint)
+  (let [messages (mc/find-maps @db "messages")]
+    (->> messages
+         (pmap in-degree)
+         #_(reduce (fn [[id1 od1] [id2 od2]] [(+ id1 id2) (+ od1 od2)]))))
+
+
+
 
   )
