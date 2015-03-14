@@ -44,4 +44,7 @@
 
   (def message-nw (create-message-network news-pubs))
 
+
+  1
+
   )

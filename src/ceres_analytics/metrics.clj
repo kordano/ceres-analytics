@@ -1,7 +1,7 @@
 (ns ceres-analytics.metrics
   (:refer-clojure :exclude [find sort])
   (:require [monger.collection :as mc]
-            [ceres-analytics.core :refer [db news-accounts]]
+            [ceres-analytics.core :refer [db news-accounts links nodes]]
             [clojure.data.priority-map :refer [priority-map]]
             [clj-time.core :as t]
             [clj-time.periodic :as p]
@@ -73,5 +73,28 @@
 
 
 
+  ;; avg avg out degree
+  (->> refs
+       (pmap (fn [d] [d
+                     (->> (mc/find-maps @db d)
+                          (map :source)
+                          frequencies
+                          vals
+                          mean)]))
+       vec
+       time)
+
+  ;; avg in degree
+  (->> refs
+       (pmap (fn [d] [d
+                     (->> (mc/find-maps @db d)
+                          (map :target)
+                          frequencies
+                          vals
+                          mean)]))
+       vec
+       time)
+
+  (frequencies (map :target (mc/find-maps @db "unknown")))
 
   )

@@ -23,35 +23,9 @@
 
 (def time-interval {$gt (t/date-time 2014 8 1) $lt (t/date-time 2014 9 1)})
 
-
 (def custom-formatter (f/formatter "E MMM dd HH:mm:ss Z YYYY"))
 
-
-(def news-accounts #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "N24_de" "sternde" "focusonline"} )
-
-
-(def degrees
-  (future
-    (->> (mc/find-maps @db "publications")
-         (pmap
-          (fn [p]
-            [(:_id p)
-             (+ (mc/count @db "reactions" {:publication (:_id p)})
-                (mc/count @db "reactions" {:source (:_id p)}))])))))
-
-
-(def suids (->> (mc/find-maps @db "users" {:screen_name {$in news-accounts}})
-                  (map (fn [{:keys [_id screen_name]}] [_id screen_name ]) )
-                  (into {})))
-
-(def start-date (t/date-time 2014 8 1))
-(def end-date (t/date-time 2014 10 1))
-(def days-running (t/in-days (t/interval start-date end-date)))
-(def dates (take days-running (p/periodic-seq start-date (t/days 1))))
-(def source-publications (mc/find-maps @db "publications" {:user {$in (keys suids)}
-                                                           :ts time-interval}))
-(def user-publications (mc/find-maps @db "publications" {:user {$nin (keys suids)}}))
-(def dbs ["publications" "reactions" "hashtags" "users" "mentions" "urls" "htmls"])
+(def news-accounts #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "N24_de" "sternde" "focusonline"})
 
 (defn short-metrics [coll]
   {:mean (mean coll)
