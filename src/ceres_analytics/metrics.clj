@@ -58,6 +58,9 @@
       r)))
 
 
+
+
+
 (comment
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
@@ -82,6 +85,7 @@
                           vals
                           mean)]))
        vec
+       aprint
        time)
 
   ;; avg in degree
@@ -93,8 +97,29 @@
                           vals
                           mean)]))
        vec
+       aprint
        time)
 
-  (frequencies (map :target (mc/find-maps @db "unknown")))
+
+  (->> (map
+        (fn [h] [h (mc/find-maps @db "pubs" {:ts {$gt (t/date-time 2015 3 13 h)
+                                                 $lt (t/date-time 2015 3 13 h 59 59 999)}})])
+        (range 0 24))
+       (into {})
+       (pmap (fn [[k v]] [k]))
+       aprint)
+
+  (->> {:ts {$gt (t/date-time 2015 3 13 8)
+             $lt (t/date-time 2015 3 13 8 59 59 999)}}
+       (mc/find-maps @db "pubs")
+       (pmap (fn [{:keys [target]}] (reduce + (pmap #(mc/count @db % {:target target
+                                                                     :ts {$gt (t/date-time 2015 3 13 8)
+             $lt (t/date-time 2015 3 13 8 59 59 999)}}) ["retweets" "replies" "shares"])) ))
+       frequencies
+       (sort-by val >)
+       aprint
+       time)
+
+
 
   )
