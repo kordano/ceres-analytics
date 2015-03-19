@@ -79,4 +79,13 @@
 
   (stop-server)
 
+
+
+  (let [messages (mc/find-maps @db "messages" {:ts {$gt (t/date-time 2015 3 18 8)
+                                                    $lt (t/date-time 2015 3 18 8 10)}})
+        retweets (map  (fn [{:keys [_id text]}]
+                         [text (mc/find-maps @db "retweets" {:target _id})]) messages)]
+    )
+
+
   )
