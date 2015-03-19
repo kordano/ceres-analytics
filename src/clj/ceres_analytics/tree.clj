@@ -15,7 +15,7 @@
             [clj-time.periodic :as p]
             [clojure.pprint :refer [pprint]]
             [incanter.stats :refer [mean variance quantile]]
-            [ceres-analytics.core :refer [db custom-formatter news-accounts suids]])
+            [ceres-analytics.core :refer [db custom-formatter news-accounts]])
  (:import org.bson.types.ObjectId))
 
 (defrecord Message [source reactions])
@@ -127,15 +127,8 @@
            (zip/next loc)))
         (recur counter types nodes texts links (zip/next loc))))))
 
-(def tree-summaries
-    (future
-      (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-           (pmap (comp tree-summary reaction-tree :_id)))))
 
-(def full-summaries
-  (future
-    (->> (mc/find-maps @db "publications" {:user {$in (keys suids)}})
-         (pmap (comp full-reaction-tree :_id)))))
+
 
 
 (comment

@@ -18,22 +18,25 @@
                  [net.sf.jung/jung-algorithms "2.0.1"]
                  [net.sf.jung/jung-api "2.0.1"]
                  [net.sf.jung/jung-graph-impl "2.0.1"]
+                 [org.clojure/data.priority-map "0.0.6"]
 
                  ;; backend
                  [http-kit "2.1.19"]
                  [ring "1.3.2"]
                  [com.cemerick/friend "0.2.1"]
-                 [enlive "1.1.5"]
-                 [compojure "1.3.1"]
+                 [enlive "1.3.2"]
+                 [compojure "0.6.0"]
 
                  ;; frontend
-                 [jarohen/chord "0.4.2"]
+                 [jarohen/chord "0.12.2.4"]
                  [com.facebook/react "0.12.1"]
                  [om "0.7.3"]
                  [kioo "0.4.0"]
                  [net.drib/strokes "0.5.1"]
 
                  [aprint "0.1.3"]]
+
+  :source-paths ["src/cljs" "src/clj"]
 
   :main ceres-analytics.core
 

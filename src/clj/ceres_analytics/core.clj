@@ -9,10 +9,7 @@
             [monger.core :as mg]
             [monger.joda-time]
             [monger.operators :refer :all]
-            [monger.query :refer :all])
-  (:import [edu.uci.ics.jung.graph DirectedSparseGraph]
-           [edu.uci.ics.jung.graph.util EdgeType]
-           [edu.uci.ics.jung.algorithms.metrics Metrics StructuralHoles TriadicCensus]))
+            [monger.query :refer :all]))
 
 
 (def db (atom
