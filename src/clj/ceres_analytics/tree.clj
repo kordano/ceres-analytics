@@ -14,7 +14,6 @@
             [clj-time.coerce :as c]
             [clj-time.periodic :as p]
             [clojure.pprint :refer [pprint]]
-            [opennlp.nlp :refer [make-tokenizer make-detokenizer]]
             [incanter.stats :refer [mean variance quantile]]
             [ceres-analytics.core :refer [db custom-formatter news-accounts suids]])
  (:import org.bson.types.ObjectId))
