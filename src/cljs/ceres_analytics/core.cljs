@@ -34,12 +34,12 @@
                 (attr {:width width
                        :height height}))]
     (.. force
-        (nodes (.-nodes data))
-        (links (.-links data))
+        (nodes (:nodes data))
+        (links (:links data))
         start)
     (let [link (.. svg
                    (selectAll ".link")
-                   (data (.-links data))
+                   (data (:links data))
                    enter
                    (append "line")
                    (attr {:class "link"})
@@ -48,15 +48,15 @@
                    )
           node (.. svg
                    (selectAll ".node")
-                   (data (.-nodes data))
+                   (data (:nodes data))
                    enter
                    (append "circle")
                    (attr {:class "node"
                            :r "4"})
-                   (style {:fill (fn [d] (color (.-group d)))})
+                   (style {:fill (fn [d] (color (:group d)))})
                    (call (.-drag force)))]
       (do
-        (.. node (append "title") (text (fn [d] (.-value d))))
+        (.. node (append "title") (text (fn [d] (:value d))))
         (.. force
             (on "tick"
                  (fn []
@@ -77,10 +77,12 @@
     (if-not error
       (do
         (>! ws-channel {:topic :graph :data nil})
-        (let [{:keys [message error]} (<! ws-channel)]
-          (if error
-            (println "Error on incomming message: " error)
-            (draw-fdg  message "#graph-container"))))
+        (loop [{:keys [message error] :as in} (<! ws-channel)]
+          (if in
+            (if error
+              (println "Error on incomming message: " error)
+              (draw-fdg  message "#graph-container"))
+            (recur (<! ws-channel)))))
       (js/console.log "Error on connection: " (pr-str error)))))
 
 #_(draw-fdg graph-data-1 "#graph-container")
