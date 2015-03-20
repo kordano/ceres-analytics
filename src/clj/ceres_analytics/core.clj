@@ -58,11 +58,12 @@
                    :links []}
            user-counter 0]
       (if (empty? pubs)
-        result
+        (-> (update-in result [:nodes] vec)
+            (update-in [:links] vec))
         (let [[user messages] (first pubs)
               n (count messages)
-              nodes (concat [{:name (:_id user) :value (:name user) :group 1}] (map (fn [{:keys [text _id]}] {:name _id :value text :group 2}) messages))
-              links (map (fn [i] {:source i :target user-counter}) (range (inc user-counter) (+ user-counter n 1)))]
+              nodes (concat [{:name (str (:_id user)) :value (:name user) :group 1}] (map (fn [{:keys [text _id]}] {:name (str _id) :value text :group 2}) messages))
+              links (mapv (fn [i] {:source i :target user-counter}) (range (inc user-counter) (+ user-counter n 1)))]
           (recur (rest pubs)
                  (-> result
                      (update-in [:nodes] concat nodes)
@@ -83,8 +84,7 @@
   [request]
   (with-channel request channel
     (on-close channel (fn [msg] (println "Channel closed!")))
-    (on-receive channel (fn [msg]
-                          (send! channel (pr-str (dispatch-request (read-string msg))))))))
+    (on-receive channel (fn [msg] (send! channel (pr-str (dispatch-request (read-string msg))))))))
 
 
 (defroutes handler
@@ -104,13 +104,5 @@
   (def stop-server (run-server (site #'handler) {:port 8091 :join? false}))
 
   (stop-server)
-
-
-
-  (def users )
-
-
-
-
 
   )

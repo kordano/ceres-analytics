@@ -1,5 +1,9 @@
 (ns ceres-analytics.core
-  (:require [strokes :refer [d3]]))
+  (:require [strokes :refer [d3]]
+            [chord.client :refer [ws-ch]]
+            [cljs.reader :as reader]
+            [cljs.core.async :refer [<! >! put! close!]])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (enable-console-print!)
 
@@ -28,7 +32,7 @@
                 (select frame)
                 (append "svg")
                 (attr {:width width
-                        :height height}))]
+                       :height height}))]
     (.. force
         (nodes (.-nodes data))
         (links (.-links data))
@@ -66,4 +70,17 @@
                        (attr {:cx #(.-x %)
                                :cy #(.-y %)})))))))))
 
-(draw-fdg graph-data-1 "#graph-container")
+
+
+(go
+  (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
+    (if-not error
+      (do
+        (>! ws-channel {:topic :graph :data nil})
+        (let [{:keys [message error]} (<! ws-channel)]
+          (if error
+            (println "Error on incomming message: " error)
+            (draw-fdg  message "#graph-container"))))
+      (js/console.log "Error on connection: " (pr-str error)))))
+
+#_(draw-fdg graph-data-1 "#graph-container")

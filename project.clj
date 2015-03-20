@@ -51,7 +51,7 @@
 
   :cljsbuild
   {:builds
-   [{:source-paths ["src"]
+   [{:source-paths ["src/cljs"]
      :compiler
      {:output-to "resources/public/js/compiled/main.js"
       :output-dir "resources/public/js/compiled/out"
