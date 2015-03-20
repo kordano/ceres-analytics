@@ -10,3 +10,4 @@ pom.xml.asc
 /*.pdf
 /resources/public/js
 /resources/public/static
+*-init.clj
