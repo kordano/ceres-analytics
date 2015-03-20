@@ -18,6 +18,7 @@
             [taoensso.timbre :refer [info debug error warn] :as timbre]
             [org.httpkit.server :refer [with-channel on-receive on-close run-server send!]]))
 
+
 (timbre/refer-timbre)
 
 (def db (atom
@@ -42,13 +43,38 @@
 
 (def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
+(defn get-random-links []
+  (let [publications (map
+                      (fn [{:keys [_id name] :as user}]
+                        [user
+                         (map
+                          #(mc/find-map-by-id @db "messages" (:target %))
+                          (mc/find-maps @db "pubs" {:source _id
+                                                    :ts {$gt (t/date-time 2015 3 19 8)
+                                                         $lt (t/date-time 2015 3 19 9)}}))])
+                      (mc/find-maps @db "users" {:name {$in news-accounts}}))]
+    (loop [pubs publications
+           result {:nodes []
+                   :links []}
+           user-counter 0]
+      (if (empty? pubs)
+        result
+        (let [[user messages] (first pubs)
+              n (count messages)
+              nodes (concat [{:name (:_id user) :value (:name user) :group 1}] (map (fn [{:keys [text _id]}] {:name _id :value text :group 2}) messages))
+              links (map (fn [i] {:source i :target user-counter}) (range (inc user-counter) (+ user-counter n 1)))]
+          (recur (rest pubs)
+                 (-> result
+                     (update-in [:nodes] concat nodes)
+                     (update-in [:links] concat links))
+                 (+ user-counter n 1)))))))
 
 
 (defn dispatch-request
   "Dispatch incoming requests"
   [{:keys [topic data]}]
   (case topic
-    :graph {:nodes [10 20 30] :links [[10 20] [20 30] [30 10]]}
+    :graph (get-random-links)
     :unrelated))
 
 
@@ -81,11 +107,10 @@
 
 
 
-  (let [messages (mc/find-maps @db "messages" {:ts {$gt (t/date-time 2015 3 18 8)
-                                                    $lt (t/date-time 2015 3 18 8 10)}})
-        retweets (map  (fn [{:keys [_id text]}]
-                         [text (mc/find-maps @db "retweets" {:target _id})]) messages)]
-    )
+  (def users )
+
+
+
 
 
   )
