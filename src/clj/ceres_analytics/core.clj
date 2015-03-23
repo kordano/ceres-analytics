@@ -43,15 +43,15 @@
 
 (def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
-(defn get-random-links []
+(defn get-random-links [end-time]
   (let [publications (map
                       (fn [{:keys [_id name] :as user}]
                         [user
                          (map
                           #(mc/find-map-by-id @db "messages" (:target %))
                           (mc/find-maps @db "pubs" {:source _id
-                                                    :ts {$gt (t/date-time 2015 3 19 8)
-                                                         $lt (t/date-time 2015 3 19 9)}}))])
+                                                    :ts {$gt (t/date-time 2015 3 19)
+                                                         $lt (t/date-time 2015 3 19 end-time)}}))])
                       (mc/find-maps @db "users" {:name {$in news-accounts}}))]
     (loop [pubs publications
            result {:nodes []
@@ -75,7 +75,7 @@
   "Dispatch incoming requests"
   [{:keys [topic data]}]
   (case topic
-    :graph (get-random-links)
+    :graph (get-random-links data)
     :unrelated))
 
 
@@ -84,7 +84,13 @@
   [request]
   (with-channel request channel
     (on-close channel (fn [msg] (println "Channel closed!")))
-    (on-receive channel (fn [msg] (send! channel (pr-str (dispatch-request (read-string msg))))))))
+    (on-receive channel (fn [msg]
+                          (do
+                            (info "sending data")
+                            (send! channel (pr-str (dispatch-request (read-string msg))))
+                            (Thread/sleep 5000)
+                            (info "sending data")
+                            (send! channel (pr-str (dispatch-request {:topic :graph :data 10}))))))))
 
 
 (defroutes handler
@@ -94,9 +100,9 @@
 
 
 (defn -main [& args]
+  (info "warming up...")
   (run-server (site #'handler) {:port 8091 :join? false})
-  (println "Server up and running!")
-  (println  "Visit http://localhost:8091"))
+  (info "running!\nVisit http://localhost:8091"))
 
 
 (comment

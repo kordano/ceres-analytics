@@ -22,8 +22,7 @@
 
 
 (defn find-reactions [pid]
-  (let [reactions (mc/find-maps @db "refs" {:target pid
-                                            :type {$in ["reply" "share" "retweet"]}})]
+  (let [reactions (apply concat (map #(mc/find-maps @db % {:target pid}) ["retweets" "replies" "shares"]))]
     (Message. pid (vec (pmap #(find-reactions (:source %)) reactions)))))
 
 
@@ -133,8 +132,16 @@
 
 (comment
 
-
   (def users (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
+  (def user-messages (apply concat (map #(mc/find-maps @db "pubs" {:source (:_id %)}) users)))
+
+
+  (count user-messages)
+
+  (->> user-messages
+       (pmap (comp :size tree-summary reaction-tree :target))
+       frequencies
+       (sort-by first >))
 
   )
