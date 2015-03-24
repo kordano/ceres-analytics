@@ -111,4 +111,30 @@
 
   (stop-server)
 
+
+  (def graph-data-1
+    [{{:name "u1" :value 42}
+      :reactions [{{:name "m1" :value 42}
+                   :reactions []}
+                  {{:name "m2" :value 43}
+                   :reactions []}
+                  {{:name "m3" :value 44}
+                   :reactions [{{:name "m4" :value 45}
+                                :reactions []}]}]}
+     {{:name "u2" :value 49}
+      :reactions [{{:name "m5" :value 54}
+                   :reactions [{{:name "m6" :value 15}
+                                :reactions []}]}]}])
+
+  {:nodes [{:name "u1" :value 42} {:name "u2" :value 49} {:name "m1" :value 42}{:name "m2" :value 43} {:name "m3" :value 44} {:name "m4" :value 45} {:name "m5" :value 54} {:name "m6" :value 15}]
+   :links [{:source 0 :target 2}
+           {:source 0 :target 3}
+           {:source 0 :target 4}
+           {:source :target}
+           {:source :target}
+           {:source :target}
+
+           ]}
+
+
   )
