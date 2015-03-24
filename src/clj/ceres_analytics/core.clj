@@ -44,31 +44,21 @@
 (def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
 (defn get-random-links [end-time]
-  (let [publications (map
-                      (fn [{:keys [_id name] :as user}]
-                        [user
-                         (map
-                          #(mc/find-map-by-id @db "messages" (:target %))
-                          (mc/find-maps @db "pubs" {:source _id
-                                                    :ts {$gt (t/date-time 2015 3 19)
-                                                         $lt (t/date-time 2015 3 19 end-time)}}))])
-                      (mc/find-maps @db "users" {:name {$in news-accounts}}))]
-    (loop [pubs publications
-           result {:nodes []
-                   :links []}
-           user-counter 0]
-      (if (empty? pubs)
-        (-> (update-in result [:nodes] vec)
-            (update-in [:links] vec))
-        (let [[user messages] (first pubs)
-              n (count messages)
-              nodes (concat [{:name (str (:_id user)) :value (:name user) :group 1}] (map (fn [{:keys [text _id]}] {:name (str _id) :value text :group 2}) messages))
-              links (mapv (fn [i] {:source i :target user-counter}) (range (inc user-counter) (+ user-counter n 1)))]
-          (recur (rest pubs)
-                 (-> result
-                     (update-in [:nodes] concat nodes)
-                     (update-in [:links] concat links))
-                 (+ user-counter n 1)))))))
+  (apply merge-with (comp vec concat)
+         (map
+          (fn [[user messages]]
+            {:nodes (concat [{:name (str (:_id user)) :value (:name user) :group 1}]
+                            (map (fn [m] {:name (str (:_id m)) :value (:text m) :group 2}) messages))
+             :links (map (fn [m] {:source (str (:_id user)) :target (str (:_id m)) }) messages)})
+          (map
+           (fn [{:keys [_id name] :as user}]
+             [user
+              (map
+               #(mc/find-map-by-id @db "messages" (:target %))
+               (mc/find-maps @db "pubs" {:source _id
+                                         :ts {$gt (t/date-time 2015 3 19)
+                                              $lt (t/date-time 2015 3 19 end-time)}}))])
+           (mc/find-maps @db "users" {:name {$in news-accounts}})))))
 
 
 (defn dispatch-request
@@ -88,9 +78,13 @@
                           (do
                             (info "sending data")
                             (send! channel (pr-str (dispatch-request (read-string msg))))
-                            (Thread/sleep 5000)
-                            (info "sending data")
-                            (send! channel (pr-str (dispatch-request {:topic :graph :data 10}))))))))
+                            (loop [i 2]
+                              (Thread/sleep 10000)
+                              (if (= i 12)
+                                nil
+                                (do
+                                  (send! channel (pr-str (dispatch-request {:topic :graph :data i})))
+                                  (recur (inc i))))))))))
 
 
 (defroutes handler
@@ -112,29 +106,6 @@
   (stop-server)
 
 
-  (def graph-data-1
-    [{{:name "u1" :value 42}
-      :reactions [{{:name "m1" :value 42}
-                   :reactions []}
-                  {{:name "m2" :value 43}
-                   :reactions []}
-                  {{:name "m3" :value 44}
-                   :reactions [{{:name "m4" :value 45}
-                                :reactions []}]}]}
-     {{:name "u2" :value 49}
-      :reactions [{{:name "m5" :value 54}
-                   :reactions [{{:name "m6" :value 15}
-                                :reactions []}]}]}])
-
-  {:nodes [{:name "u1" :value 42} {:name "u2" :value 49} {:name "m1" :value 42}{:name "m2" :value 43} {:name "m3" :value 44} {:name "m4" :value 45} {:name "m5" :value 54} {:name "m6" :value 15}]
-   :links [{:source 0 :target 2}
-           {:source 0 :target 3}
-           {:source 0 :target 4}
-           {:source :target}
-           {:source :target}
-           {:source :target}
-
-           ]}
 
 
   )
