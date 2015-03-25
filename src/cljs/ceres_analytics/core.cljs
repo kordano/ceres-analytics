@@ -7,13 +7,22 @@
 
 (enable-console-print!)
 
+(defn log [m & ms] (.log js/console (apply str m ms)) )
+
+
 (strokes/bootstrap)
 
 (println "Hell yeah!")
 
-(def app-state (atom {:node->index {}
-                      :d3 {:nodes []
-                           :links []}}))
+(def graph-state (atom {:svg nil
+                        :width 960
+                        :height 450
+                        :frame "#graph-container"
+                        :color nil
+                        :force nil
+                        :node->index {}
+                        :data {:nodes []
+                               :links []}}))
 
 
 (defn clear-canvas [frame]
@@ -23,101 +32,102 @@
       remove))
 
 
-(defn update-client-state [old new-state]
-  (let [{:keys [nodes links]} new-state
-        n (-> @old :d3 :nodes count)
-        old-nodes (into #{} (keys (:node->index @old)))
-        old-links (into #{} (get-in @old [:d3 :links]))
-        new-nodes (vec (remove #(get old-nodes (:name %)) nodes))
-        {:keys [node->index]} (swap! old update-in [:node->index] merge (apply merge (map (fn [i] {(-> new-nodes (get i) :name) (+ i n)}) (range (count new-nodes)))))
-        new-links (remove old-links (map (fn [{:keys [source target]}] {:source (get node->index source) :target (get node->index target)}) links))]
-    (swap! old update-in [:d3 :nodes] (comp vec concat) new-nodes)
-    (swap! old update-in [:d3 :links] (comp vec concat) new-links)))
-
-
-(defn calculate-links [data]
-  (let [{:keys [links nodes]} data
-        node->index (apply merge (map (fn [i] {(-> nodes (get i) :name) i}) (range (count nodes))))]
-    {:nodes nodes
-     :links (mapv (fn [{:keys [source target]}] {:source (get node->index source) :target (get node->index target)}) links)}))
-
-(defn update-fdg
-  "Update function for data in nodes and links"
-  [svg data]
-  (let [width 1080
-        height 920
-        color ["red" "steelblue"]
-        force (.. d3 -layout force (charge -10)  (linkDistance 10) (size [width height]))]
+(defn update-graph
+  "Updates nodes and links in graph"
+  [state]
+  (let [{:keys [svg width height data force color]} @state
+        link (.. svg
+                 (selectAll ".link")
+                 (data (:links data)))
+        node (.. svg
+                 (selectAll "g.node")
+                 (data (:nodes data)))]
+    (.. link enter (append "line")
+        (attr {:class "link"})
+        (style {:stroke-width 1 :stroke "grey"}))
+    (.. link exit remove)
+    (let [node-enter (.. node
+                         enter
+                         (append "g")
+                         (attr {:class "node"})
+                         (call (.-drag force)))]
+      (.. node-enter
+          (append "svg:circle")
+          (attr {:class "node-stroke" :r 3})
+          (style {:fill (fn [d] (color (dec (:group d))))
+                  :stroke "#fff"}))
+      (.. node-enter (append "title") (text (fn [d] (:value d)))))
+    (.. node exit remove)
     (.. force
+        (on "tick"
+            (fn []
+              (.. link
+                  (attr
+                   {:x1 #(.. % -source -x)
+                    :y1 #(.. % -source -y)
+                    :x2 #(.. % -target -x)
+                    :y2 #(.. % -target -y)}))
+              (.. node
+                  (attr #_{:cx #(.-x %)
+                           :cy #(.-y %)}
+                        {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
+    (.. force
+        (charge -200)
+        (linkDistance 10)
+        (size [width height])
         (nodes (:nodes data))
         (links (:links data))
-        start)
-    (let [link (.. svg
-                   (selectAll ".link")
-                   (data (:links data)))
-          node (.. svg
-                   (selectAll ".node")
-                   (data (:nodes data)))]
-      (do
-        (.. node
-            (attr {:class "update"}))
-        (.. node
-            enter
-            (append "circle")
-            (attr {:class "node" :r 1})
-            (style {:fill (fn [d] (color (dec (:group d))))})
-            (call (.-drag force)))
-        (.. node (append "eitle") (text (fn [d] (:value d))))
-        (.. link
-            (attr {:class "update"}))
-        (.. link
-            enter
-            (append "line")
-            (attr {:class "link"})
-            (style {:stroke-width 1
-                    :stroke "grey"}))
-        (.. force
-            (on "tick"
-                (fn []
-                  (.. link
-                      (attr
-                       {:x1 #(.. % -source -x)
-                        :y1 #(.. % -source -y)
-                        :x2 #(.. % -target -x)
-                        :y2 #(.. % -target -y)}))
-                  (.. node
-                      (attr {:cx #(.-x %)
-                             :cy #(.-y %)})))))
-        (.. link exit remove)
-        (.. node exit remove)))))
+        start))
+  state)
 
 
-(defn create-fdg-svg
-  "Draw force-directed graph"
-  [frame]
-  (let [width 1080
-        height 920]
-    (.. d3
-        (select frame)
-        (append "svg")
-        (attr {:width width
-               :height height}))))
+(defn add-node [state {:keys [name] :as new-node}]
+  (log "adding node " name)
+  (swap! state assoc-in [:node->index name] (count (get-in @state [:data :nodes])))
+  (swap! state update-in [:data :nodes] conj new-node)
+  (update-graph state))
+
+
+(defn add-link
+  "Add new link to graph structure"
+  [state {:keys [source target] :as new-link}]
+  (swap! state update-in [:data :links] conj
+         {:source (get-in @state [:node->index source])
+          :target (get-in @state [:node->index target])})
+  (update-graph state))
+
+
+(defn init-graph [state]
+  (let [{:keys [width height frame data]} @state
+        force (.. d3 -layout force)]
+    (swap! state assoc-in [:svg] (.. d3
+                                      (select frame)
+                                      (append "svg")
+                                      (attr {:width width
+                                             :height height})))
+    (swap! state assoc-in [:force] force)
+    (swap! state assoc-in [:color] ["red" "steelblue"])
+    (update-graph state)))
 
 
 
-(go
-  (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
-        svg ]
-    (if-not error
-      (do
-        (>! ws-channel {:topic :graph :data 1})
-        (loop [{:keys [message error] :as in} (<! ws-channel)]
-          (when in
-            (if error
-              (println "Error on incomming message: " error)
-              (do
-                (println "Incoming message!")
-                (clear-canvas "#graph-container")
-                (update-fdg (create-fdg-svg "#graph-container")(calculate-links message))
-                (recur (<! ws-channel)))))))
-      (js/console.log "Error on connection: " (pr-str error)))))
+(defn run [state]
+  (init-graph state)
+  (go
+    (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
+      (if-not error
+        (do
+          (>! ws-channel {:topic :graph :data 1})
+          (loop [{:keys [message error] :as in} (<! ws-channel)]
+            (when in
+              (if error
+                (println "Error on incomming message: " error)
+                (do
+                  (let [{:keys [nodes links]} message]
+                    (doall (map #(add-node state %) nodes))
+                    (doall (map #(add-link state %) links)))
+                  (recur (<! ws-channel)))))))
+        (js/console.log "Error on connection: " (pr-str error))))))
+
+
+(run graph-state)

@@ -78,7 +78,7 @@
                           (do
                             (info "sending data")
                             (send! channel (pr-str (dispatch-request (read-string msg))))
-                            (loop [i 2]
+                            #_(loop [i 2]
                               (Thread/sleep 10000)
                               (if (= i 12)
                                 nil
