@@ -43,7 +43,7 @@
 
 (def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
-(defn get-random-links [end-time]
+(defn get-random-links [[start-time end-time]]
   (apply merge-with (comp vec concat)
          (map
           (fn [[user messages]]
@@ -56,7 +56,7 @@
               (map
                #(mc/find-map-by-id @db "messages" (:target %))
                (mc/find-maps @db "pubs" {:source _id
-                                         :ts {$gt (t/date-time 2015 3 19)
+                                         :ts {$gt (t/date-time 2015 3 19 start-time)
                                               $lt (t/date-time 2015 3 19 end-time)}}))])
            (mc/find-maps @db "users" {:name {$in news-accounts}})))))
 
@@ -77,14 +77,7 @@
     (on-receive channel (fn [msg]
                           (do
                             (info "sending data")
-                            (send! channel (pr-str (dispatch-request (read-string msg))))
-                            #_(loop [i 2]
-                              (Thread/sleep 10000)
-                              (if (= i 12)
-                                nil
-                                (do
-                                  (send! channel (pr-str (dispatch-request {:topic :graph :data i})))
-                                  (recur (inc i))))))))))
+                            (send! channel (pr-str (dispatch-request (read-string msg)))))))))
 
 
 (defroutes handler

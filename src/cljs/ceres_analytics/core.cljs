@@ -3,7 +3,7 @@
             [chord.client :refer [ws-ch]]
             [cljs.reader :as reader]
             [cljs.core.async :refer [<! >! put! close! timeout]])
-  (:require-macros [cljs.core.async.macros :refer [go]]))
+  (:require-macros [cljs.core.async.macros :refer [go-loop go]]))
 
 (enable-console-print!)
 
@@ -15,8 +15,8 @@
 (println "Hell yeah!")
 
 (def graph-state (atom {:svg nil
-                        :width 960
-                        :height 450
+                        :width 1600
+                        :height 900
                         :frame "#graph-container"
                         :color nil
                         :force nil
@@ -72,8 +72,9 @@
                            :cy #(.-y %)}
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
-        (charge -200)
+        (charge -800)
         (linkDistance 10)
+        (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
         (links (:links data))
@@ -82,10 +83,11 @@
 
 
 (defn add-node [state {:keys [name] :as new-node}]
-  (log "adding node " name)
-  (swap! state assoc-in [:node->index name] (count (get-in @state [:data :nodes])))
-  (swap! state update-in [:data :nodes] conj new-node)
-  (update-graph state))
+  (when-not ((into #{} (keys (get-in @state [:node->index]))) name)
+    (do
+      (swap! state assoc-in [:node->index name] (count (get-in @state [:data :nodes])))
+      (swap! state update-in [:data :nodes] conj new-node)
+      (update-graph state))))
 
 
 (defn add-link
@@ -115,19 +117,28 @@
   (init-graph state)
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
+      (swap! state assoc-in [:ws-channel] ws-channel)
+      (>! ws-channel {:topic :graph :data [0 1]})
       (if-not error
-        (do
-          (>! ws-channel {:topic :graph :data 1})
-          (loop [{:keys [message error] :as in} (<! ws-channel)]
-            (when in
-              (if error
-                (println "Error on incomming message: " error)
-                (do
-                  (let [{:keys [nodes links]} message]
-                    (doall (map #(add-node state %) nodes))
-                    (doall (map #(add-link state %) links)))
-                  (recur (<! ws-channel)))))))
+        (loop [{:keys [message error] :as in} (<! ws-channel)]
+          (when in
+            (if error
+              (println "Error on incomming message: " error)
+              (do
+                (let [{:keys [nodes links]} message]
+                  (doall (map #(add-node state %) nodes))
+                  (doall (map #(add-link state %) links)))
+                (recur (<! ws-channel))))))
         (js/console.log "Error on connection: " (pr-str error))))))
 
 
 (run graph-state)
+
+(go-loop [i 1]
+  (if (= i 23)
+    (println "done")
+    (do
+      (<! (timeout 10000))
+      (let [ws (:ws-channel @graph-state)]
+        (go (>! ws {:topic :graph :data [i (inc i)]})))
+      (recur (inc i)))))
