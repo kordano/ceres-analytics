@@ -43,22 +43,31 @@
 
 (def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
 
-(defn get-random-links [[start-time end-time]]
-  (apply merge-with (comp vec concat)
-         (map
-          (fn [[user messages]]
-            {:nodes (concat [{:name (str (:_id user)) :value (:name user) :group 1}]
-                            (map (fn [m] {:name (str (:_id m)) :value (:text m) :group 2}) messages))
-             :links (map (fn [m] {:source (str (:_id user)) :target (str (:_id m)) }) messages)})
-          (map
-           (fn [{:keys [_id name] :as user}]
-             [user
-              (map
-               #(mc/find-map-by-id @db "messages" (:target %))
-               (mc/find-maps @db "pubs" {:source _id
-                                         :ts {$gt (t/date-time 2015 3 19 start-time)
-                                              $lt (t/date-time 2015 3 19 end-time)}}))])
-           (mc/find-maps @db "users" {:name {$in news-accounts}})))))
+(defn get-random-links [{:keys [user interval]}]
+  (let [[start-time end-time] interval]
+    (apply merge-with (comp vec concat)
+           (map
+            (fn [[user messages]]
+              {:nodes (concat [{:name (str (:_id user)) :value (:name user) :group 1}]
+                              (map (fn [m] {:name (str (:_id m)) :value (:text m) :group 2}) messages))
+               :links (map (fn [m] {:source (str (:_id user)) :target (str (:_id m)) }) messages)})
+            (map
+             (fn [{:keys [_id name] :as user}]
+               [user
+                (map
+                 #(mc/find-map-by-id @db "messages" (:target %))
+                 (mc/find-maps @db "pubs" {:source _id
+                                           :ts {$gt (t/date-time 2015 3 19 start-time)
+                                                $lt (t/date-time 2015 3 19 end-time)}}))])
+             (mc/find-maps @db "users" {:name {$in news-accounts}}))))))
+
+
+(defn get-source-messages
+  "Retrieve messages and their reactions from a given news source in a specific interval"
+  [{:keys [user interval]}]
+  (let [[start-time end-time] interval]
+    ))
+
 
 
 (defn dispatch-request
@@ -97,8 +106,6 @@
   (def stop-server (run-server (site #'handler) {:port 8091 :join? false}))
 
   (stop-server)
-
-
 
 
   )

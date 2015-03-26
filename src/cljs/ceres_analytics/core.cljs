@@ -53,7 +53,7 @@
                          (call (.-drag force)))]
       (.. node-enter
           (append "svg:circle")
-          (attr {:class "node-stroke" :r 3})
+          (attr {:class "node-stroke" :r 5})
           (style {:fill (fn [d] (color (dec (:group d))))
                   :stroke "#fff"}))
       (.. node-enter (append "title") (text (fn [d] (:value d)))))
@@ -130,7 +130,6 @@
                   (doall (map #(add-link state %) links)))
                 (recur (<! ws-channel))))))
         (js/console.log "Error on connection: " (pr-str error))))))
-
 
 (run graph-state)
 
