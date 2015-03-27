@@ -118,7 +118,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :graph :data [0 1]})
+      (>! ws-channel {:topic :user-tree :data "SZ"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
@@ -133,7 +133,7 @@
 
 (run graph-state)
 
-(go-loop [i 1]
+#_(go-loop [i 1]
   (if (= i 23)
     (println "done")
     (do

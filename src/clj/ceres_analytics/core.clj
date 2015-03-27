@@ -68,7 +68,7 @@
   [{:keys [topic data]}]
   (case topic
     :graph (get-random-links data)
-    :user-tree (cascade/get-usertree data)
+    :user-tree (cascade/get-user-tree data)
     :unrelated))
 
 

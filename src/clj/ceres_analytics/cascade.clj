@@ -28,7 +28,7 @@
                         (apply concat
                                (map
                                 (fn [{:keys [source target ts]}]
-                                  (find-links {:source source :ts ts :target target :group (colls coll)}))
+                                  (find-links {:source source :target target :group (colls coll)}))
                                 (mc/find-maps @db coll {:target source}))))
                       (keys colls)))
           link)))
@@ -36,23 +36,22 @@
 
 (defn get-user-tree [username]
   (let [user (mc/find-one-as-map @db "users" {:name username})
-        user-node {:name (:_id user) :value (:name user) :ts user}
+        user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
                                                               :ts {$gt (t/date-time 2015 3 26 12) $lt (t/date-time 2015 3 26 13)}})))
-        links (->> (mc/find-maps @db "sources" {:ts {$gt (t/date-time 2015 3 26 12) $lt (t/date-time 2015 3 26 18)}
+        links (->> (mc/find-maps @db "sources" {:ts {$gt (t/date-time 2015 3 26 12) $lt (t/date-time 2015 3 26 13)}
                                                 :target {$in pubs}})
                    (map (comp find-links
                               (fn [{:keys [source target ts]}]
                                 {:source target
                                  :target (:_id user)
-                                 :ts ts
                                  :group 1})
                               #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
                               #(mc/find-map-by-id @db "messages" (:target %))))
                    (apply concat))
         nodes (->> links
                    (map (comp (fn [{:keys [_id text ts]}]
-                                {:name _id :value text :ts ts :group 2})
+                                {:name _id :value text :group 2})
                               #(mc/find-map-by-id @db "messages" (:source %)))))]
-    {:nodes (mapv #(update-in % [:name] str) nodes)
+    {:nodes (mapv #(update-in % [:name] str) (conj nodes user-node))
      :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str) ) links)}))
