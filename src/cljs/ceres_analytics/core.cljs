@@ -2,6 +2,8 @@
   (:require [strokes :refer [d3]]
             [chord.client :refer [ws-ch]]
             [cljs.reader :as reader]
+            [cljs-time.core :as t]
+            [cljs-time.coerce :as c]
             [cljs.core.async :refer [<! >! put! close! timeout]])
   (:require-macros [cljs.core.async.macros :refer [go-loop go]]))
 
@@ -112,33 +114,51 @@
     (update-graph state)))
 
 
+(defn start-vis [state]
+  (let [nodes (get-in @state [:data :new-nodes])
+        links (get-in @state [:data :new-links])]
+    (println "Starting vis...")
+    (go-loop [i 0]
+      (if (= i 23)
+        (println "done")
+        (do
+          (loop [j 0]
+            (if (= j 60)
+              nil
+              (do
+                (println (str i ":" j))
+                (<! (timeout 5000))
+                (let [k (t/interval (t/date-time 2015 3 26 i j) (t/date-time 2015 3 26 i (+ j 30)))
+                      new-nodes (filter #(t/within? k (:ts %)) nodes)
+                      new-links (filter #(t/within? k (:ts %)) links)]
+                  (doall (map #(add-node state %) new-nodes))
+                  (doall (map #(add-link state %) new-links))
+                  (recur (+ j 30))))))
+          (recur (inc i)))))))
+
 
 (defn run [state]
   (init-graph state)
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data {:username "SZ" :start 1 :end 2}})
+      (>! ws-channel {:topic :user-tree :data "SZ"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
             (if error
               (println "Error on incomming message: " error)
               (do
-                (let [{:keys [nodes links]} message]
-                  (doall (map #(add-node state %) nodes))
-                  (doall (map #(add-link state %) links)))
+                (let [{:keys [nodes links]} message
+                      formated-nodes (map (fn [n] (update-in n [:ts] c/from-string)) nodes)
+                      formated-links (map (fn [l] (update-in l [:ts] c/from-string)) links)]
+                  (swap! state assoc-in [:data :new-nodes] formated-nodes)
+                  (swap! state assoc-in [:data :new-links] formated-links)
+                  (<! (timeout 5000))
+                  (start-vis state))
                 (recur (<! ws-channel))))))
         (js/console.log "Error on connection: " (pr-str error))))))
 
-(run graph-state)
 
-(go-loop [i 2]
-  (if (= i 18)
-    (println "done")
-    (do
-      (<! (timeout 2000))
-      (let [ws (:ws-channel @graph-state)]
-        (println i)
-        (go (>! ws {:topic :user-tree :data {:username "SZ" :start i :end (inc i)}})))
-      (recur (inc i)))))
+
+(run graph-state)
