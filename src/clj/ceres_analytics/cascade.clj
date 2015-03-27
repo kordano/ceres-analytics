@@ -21,34 +21,38 @@
                                   $lt (t/date-time 2015 3 26 end)}})))
 
 
-(defn find-reactions
-  "doc-string"
-  [mid]
-  (let [group {"replies" 3 "retweets" 4 "shares" 5}]
-    [mid
-     (map
-      (fn [coll]
-        (map
-         (comp find-reactions :source)
-         (mc/find-maps @db coll {:target mid})))
-      (keys group))]))
+(defn find-links [{:keys [source target group ts] :as link}]
+  (let [colls {"replies" 2 "retweets" 3 "shares" 4}]
+    (conj (apply concat
+                 (map (fn [coll]
+                        (apply concat
+                               (map
+                                (fn [{:keys [source target ts]}]
+                                  (find-links {:source source :ts ts :target target :group (colls coll)}))
+                                (mc/find-maps @db coll {:target source}))))
+                      (keys colls)))
+          link)))
 
 
-(let [articles (->> (mc/find-maps @db "sources" {:ts {$gt (t/date-time 2015 3 26 12)
-                                                      $lt (t/date-time 2015 3 26 18)}})
-                    (map #(mc/find-map-by-id @db "messages" (:target %))))
-      pubs (->> articles
-                (map
-                 (fn [a]
-                   { (->> {:target (:_id a)}
-                          (mc/find-one-as-map @db "pubs" )
-                          :source
-                          (mc/find-map-by-id @db "users" )
-                          :name)
-                     (vector (:_id a))}))
-                (apply merge-with (comp vec concat)))]
-  (time (count (vec (map
-                     (fn
-                       [[u ps]]
-                       [u (apply merge (map find-reactions ps))])
-                     pubs)))))
+(defn get-user-tree [username]
+  (let [user (mc/find-one-as-map @db "users" {:name username})
+        user-node {:name (:_id user) :value (:name user) :ts user}
+        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
+                                                              :ts {$gt (t/date-time 2015 3 26 12) $lt (t/date-time 2015 3 26 13)}})))
+        links (->> (mc/find-maps @db "sources" {:ts {$gt (t/date-time 2015 3 26 12) $lt (t/date-time 2015 3 26 18)}
+                                                :target {$in pubs}})
+                   (map (comp find-links
+                              (fn [{:keys [source target ts]}]
+                                {:source target
+                                 :target (:_id user)
+                                 :ts ts
+                                 :group 1})
+                              #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
+                              #(mc/find-map-by-id @db "messages" (:target %))))
+                   (apply concat))
+        nodes (->> links
+                   (map (comp (fn [{:keys [_id text ts]}]
+                                {:name _id :value text :ts ts :group 2})
+                              #(mc/find-map-by-id @db "messages" (:source %)))))]
+    {:nodes (mapv #(update-in % [:name] str) nodes)
+     :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str) ) links)}))

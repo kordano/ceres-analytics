@@ -11,6 +11,7 @@
             [monger.joda-time]
             [monger.operators :refer :all]
             [monger.query :refer :all]
+            [ceres-analytics.cascade :as cascade]
             [clojure.java.io :as io]
             [compojure.route :refer [resources]]
             [compojure.core :refer [GET POST defroutes]]
@@ -62,19 +63,12 @@
              (mc/find-maps @db "users" {:name {$in news-accounts}}))))))
 
 
-(defn get-source-messages
-  "Retrieve messages and their reactions from a given news source in a specific interval"
-  [{:keys [user interval]}]
-  (let [[start-time end-time] interval]
-    ))
-
-
-
 (defn dispatch-request
   "Dispatch incoming requests"
   [{:keys [topic data]}]
   (case topic
     :graph (get-random-links data)
+    :user-tree (cascade/get-usertree data)
     :unrelated))
 
 
