@@ -108,7 +108,7 @@
                                       (attr {:width width
                                              :height height})))
     (swap! state assoc-in [:force] force)
-    (swap! state assoc-in [:color] ["red" "steelblue"])
+    (swap! state assoc-in [:color] ["red" "steelblue" "orange" "green" "pink"])
     (update-graph state)))
 
 
@@ -118,7 +118,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "SZ"})
+      (>! ws-channel {:topic :user-tree :data {:username "SZ" :start 1 :end 2}})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
@@ -133,11 +133,12 @@
 
 (run graph-state)
 
-#_(go-loop [i 1]
-  (if (= i 23)
+(go-loop [i 2]
+  (if (= i 18)
     (println "done")
     (do
-      (<! (timeout 10000))
+      (<! (timeout 2000))
       (let [ws (:ws-channel @graph-state)]
-        (go (>! ws {:topic :graph :data [i (inc i)]})))
+        (println i)
+        (go (>! ws {:topic :user-tree :data {:username "SZ" :start i :end (inc i)}})))
       (recur (inc i)))))
