@@ -55,7 +55,7 @@
                          (call (.-drag force)))]
       (.. node-enter
           (append "svg:circle")
-          (attr {:class "node-stroke" :r 5})
+          (attr {:class "node-stroke" :r 4})
           (style {:fill (fn [d] (color (dec (:group d))))
                   :stroke "#fff"}))
       (.. node-enter (append "title") (text (fn [d] (:value d)))))
@@ -74,8 +74,8 @@
                            :cy #(.-y %)}
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
-        (charge -800)
-        (linkDistance 10)
+        (charge -400)
+        (linkDistance 7)
         (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
@@ -119,7 +119,7 @@
         links (get-in @state [:data :new-links])]
     (println "Starting vis...")
     (go-loop [i 0]
-      (if (= i 23)
+      (if (= i 24)
         (println "done")
         (do
           (loop [j 0]
@@ -127,13 +127,13 @@
               nil
               (do
                 (println (str i ":" j))
-                (<! (timeout 5000))
-                (let [k (t/interval (t/date-time 2015 3 26 i j) (t/date-time 2015 3 26 i (+ j 30)))
+                (<! (timeout 2000))
+                (let [k (t/interval (t/date-time 2015 3 27 i j) (t/date-time 2015 3 27 i (+ j 20)))
                       new-nodes (filter #(t/within? k (:ts %)) nodes)
                       new-links (filter #(t/within? k (:ts %)) links)]
                   (doall (map #(add-node state %) new-nodes))
                   (doall (map #(add-link state %) new-links))
-                  (recur (+ j 30))))))
+                  (recur (+ j 20))))))
           (recur (inc i)))))))
 
 
@@ -142,7 +142,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "SZ"})
+      (>! ws-channel {:topic :user-tree :data "BILD"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
@@ -154,7 +154,7 @@
                       formated-links (map (fn [l] (update-in l [:ts] c/from-string)) links)]
                   (swap! state assoc-in [:data :new-nodes] formated-nodes)
                   (swap! state assoc-in [:data :new-links] formated-links)
-                  (<! (timeout 5000))
+                  (<! (timeout 1000))
                   (start-vis state))
                 (recur (<! ws-channel))))))
         (js/console.log "Error on connection: " (pr-str error))))))

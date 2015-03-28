@@ -1,4 +1,4 @@
-(ns ceres-analytics.core
+ (ns ceres-analytics.core
   (:gen-class :main true)
   (:refer-clojure :exclude [find sort])
   (:require [monger.collection :as mc]
