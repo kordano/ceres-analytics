@@ -75,6 +75,7 @@
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
         (charge -400)
+        (gravity 0.5)
         (linkDistance 7)
         (friction 0.1)
         (size [width height])
@@ -110,7 +111,7 @@
                                       (attr {:width width
                                              :height height})))
     (swap! state assoc-in [:force] force)
-    (swap! state assoc-in [:color] ["red" "steelblue" "orange" "green" "purple"])
+    (swap! state assoc-in [:color] ["purple" "steelblue" "orange" "green" "red" ])
     (update-graph state)))
 
 
@@ -142,7 +143,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "SZ"})
+      (>! ws-channel {:topic :user-tree :data "SPIEGELONLINE"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in

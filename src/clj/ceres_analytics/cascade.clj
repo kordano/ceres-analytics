@@ -17,6 +17,7 @@
                ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
            (mg/get-db (mg/connect sa opts) "juno"))))
 
+
 (defn find-links [{:keys [source target group ts] :as link}]
   (let [colls {"replies" 3 "retweets" 4 "shares" 5}]
     (conj (apply concat
@@ -53,8 +54,8 @@
                                 {:name _id :value text :group group :ts (c/to-string ts)})
                               (fn [{:keys [source group]}]
                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
-    {:nodes (mapv #(update-in % [:name] str) (conj nodes user-node))
-     :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str) ) links)}))
+    {:nodes (mapv #(update-in % [:name] str) nodes)
+     :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str)) (remove #(= (:name user-node) (:target %)) links))}))
 
 
 
