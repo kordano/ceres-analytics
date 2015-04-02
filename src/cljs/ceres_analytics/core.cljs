@@ -110,7 +110,7 @@
                                       (attr {:width width
                                              :height height})))
     (swap! state assoc-in [:force] force)
-    (swap! state assoc-in [:color] ["red" "steelblue" "orange" "green" "pink"])
+    (swap! state assoc-in [:color] ["red" "steelblue" "orange" "green" "purple"])
     (update-graph state)))
 
 
@@ -128,7 +128,7 @@
               (do
                 (println (str i ":" j))
                 (<! (timeout 2000))
-                (let [k (t/interval (t/date-time 2015 3 27 i j) (t/date-time 2015 3 27 i (+ j 20)))
+                (let [k (t/interval (t/date-time 2015 4 1 i j) (t/date-time 2015 4 1 i (+ j 20)))
                       new-nodes (filter #(t/within? k (:ts %)) nodes)
                       new-links (filter #(t/within? k (:ts %)) links)]
                   (doall (map #(add-node state %) new-nodes))
@@ -142,7 +142,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "BILD"})
+      (>! ws-channel {:topic :user-tree :data "SZ"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in

@@ -90,12 +90,13 @@
 
   ;; avg in degree
   (->> refs
-       (pmap (fn [d] [d
-                     (->> (mc/find-maps @db d)
-                          (map :target)
-                          frequencies
-                          vals
-                          mean)]))
+       (pmap (fn [d]
+               [d
+                (->> (mc/find-maps @db d)
+                     (map :target)
+                     frequencies
+                     vals
+                     mean)]))
        vec
        aprint
        time)
@@ -114,12 +115,17 @@
        (mc/find-maps @db "pubs")
        (pmap (fn [{:keys [target]}] (reduce + (pmap #(mc/count @db % {:target target
                                                                      :ts {$gt (t/date-time 2015 3 13 8)
-             $lt (t/date-time 2015 3 13 8 59 59 999)}}) ["retweets" "replies" "shares"])) ))
+                                                                          $lt (t/date-time 2015 3 13 8 59 59 999)}}) ["retweets" "replies" "shares"])) ))
        frequencies
        (sort-by val >)
        aprint
        time)
 
 
+
+  (map (fn [r] [r (mc/count @db r)]) refs)
+
+
+  (->> (mc/find-maps @db "shares" {:ts {$gt (t/date-time 2015 3 31)}}))
 
   )

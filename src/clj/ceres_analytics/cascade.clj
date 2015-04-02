@@ -10,7 +10,7 @@
             [clj-time.core :as t]))
 
 
-(def day {$gt (t/date-time 2015 3 27) $lt (t/date-time 2015 3 28)})
+(def day {$gt (t/date-time 2015 4 1) $lt (t/date-time 2015 4 2)})
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -36,7 +36,7 @@
 
 (defn get-user-tree [username]
   (let [user (mc/find-one-as-map @db "users" {:name username})
-        user-node {:name (:_id user) :value (:name user) :group 1 :ts (c/to-string (t/date-time 2015 3 27 0 1))}
+        user-node {:name (:_id user) :value (:name user) :group 1 :ts (c/to-string (t/date-time 2015 4 1 0 1))}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts day})))
         links (->> (mc/find-maps @db "sources" {:ts day :target {$in pubs}})
                    (map (comp find-links
