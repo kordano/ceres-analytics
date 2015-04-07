@@ -46,7 +46,7 @@
                  (data (:nodes data)))]
     (.. link enter (append "line")
         (attr {:class "link"})
-        (style {:stroke-width 1 :stroke "grey"}))
+        (style {:stroke-width 1 :stroke "lightgrey"}))
     (.. link exit remove)
     (let [node-enter (.. node
                          enter
@@ -55,7 +55,7 @@
                          (call (.-drag force)))]
       (.. node-enter
           (append "svg:circle")
-          (attr {:class "node-stroke" :r 4})
+          (attr {:class "node-stroke" :r 3})
           (style {:fill (fn [d] (color (dec (:group d))))
                   :stroke "#fff"}))
       (.. node-enter (append "title") (text (fn [d] (:value d)))))
@@ -74,7 +74,7 @@
                            :cy #(.-y %)}
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
-        (charge -400)
+        (charge -500)
         (gravity 0.5)
         (linkDistance 7)
         (friction 0.1)
@@ -129,7 +129,7 @@
               (do
                 (println (str i ":" j))
                 (<! (timeout 2000))
-                (let [k (t/interval (t/date-time 2015 4 1 i j) (t/date-time 2015 4 1 i (+ j 20)))
+                (let [k (t/interval (t/date-time 2015 4 5 i j) (t/date-time 2015 4 5 i (+ j 20)))
                       new-nodes (filter #(t/within? k (:ts %)) nodes)
                       new-links (filter #(t/within? k (:ts %)) links)]
                   (doall (map #(add-node state %) new-nodes))
