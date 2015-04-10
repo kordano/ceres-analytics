@@ -76,7 +76,7 @@
     (.. force
         (charge -550)
         (gravity 0.5)
-        (linkDistance 8)
+        (linkDistance 7)
         (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
