@@ -10,7 +10,7 @@
             [clj-time.core :as t]))
 
 
-(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 4 6)})
+(def day {$gt (t/date-time 2015 4 9) $lt (t/date-time 2015 4 10)})
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})

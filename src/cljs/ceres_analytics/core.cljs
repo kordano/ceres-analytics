@@ -129,7 +129,7 @@
               (do
                 (println (str i ":" j))
                 (<! (timeout 2000))
-                (let [k (t/interval (t/date-time 2015 4 5 i j) (t/date-time 2015 4 5 i (+ j 20)))
+                (let [k (t/interval (t/date-time 2015 4 9 i j) (t/date-time 2015 4 9 i (+ j 20)))
                       new-nodes (filter #(t/within? k (:ts %)) nodes)
                       new-links (filter #(t/within? k (:ts %)) links)]
                   (doall (map #(add-node state %) new-nodes))
