@@ -17,8 +17,8 @@
 (println "Hell yeah!")
 
 (def graph-state (atom {:svg nil
-                        :width 1600
-                        :height 900
+                        :width 2000
+                        :height 2000
                         :frame "#graph-container"
                         :color nil
                         :force nil
@@ -46,7 +46,7 @@
                  (data (:nodes data)))]
     (.. link enter (append "line")
         (attr {:class "link"})
-        (style {:stroke-width 1 :stroke "lightgrey"}))
+        (style {:stroke-width 1 :stroke "#aaa"}))
     (.. link exit remove)
     (let [node-enter (.. node
                          enter
@@ -74,9 +74,9 @@
                            :cy #(.-y %)}
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
-        (charge -500)
+        (charge -550)
         (gravity 0.5)
-        (linkDistance 7)
+        (linkDistance 8)
         (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
@@ -119,23 +119,28 @@
   (let [nodes (get-in @state [:data :new-nodes])
         links (get-in @state [:data :new-links])]
     (println "Starting vis...")
-    (go-loop [i 0]
-      (if (= i 24)
+    (go-loop [k 5]
+      (if (= k 10)
         (println "done")
         (do
-          (loop [j 0]
-            (if (= j 60)
-              nil
+          (loop [i 0]
+            (if (= i 24)
+              (println (str "day " (inc k)))
               (do
-                (println (str i ":" j))
-                (<! (timeout 2000))
-                (let [k (t/interval (t/date-time 2015 4 9 i j) (t/date-time 2015 4 9 i (+ j 20)))
-                      new-nodes (filter #(t/within? k (:ts %)) nodes)
-                      new-links (filter #(t/within? k (:ts %)) links)]
-                  (doall (map #(add-node state %) new-nodes))
-                  (doall (map #(add-link state %) new-links))
-                  (recur (+ j 20))))))
-          (recur (inc i)))))))
+                (loop [j 0]
+                  (if (= j 60)
+                    nil
+                    (do
+                      (println (str i ":" j))
+                      (<! (timeout 2000))
+                      (let [k (t/interval (t/date-time 2015 4 k i j) (t/date-time 2015 4 k i (+ j 20)))
+                            new-nodes (filter #(t/within? k (:ts %)) nodes)
+                            new-links (filter #(t/within? k (:ts %)) links)]
+                        (doall (map #(add-node state %) new-nodes))
+                        (doall (map #(add-link state %) new-links))
+                        (recur (+ j 20))))))
+                (recur (inc i)))))
+          (recur (inc k)))))))
 
 
 (defn run [state]
@@ -143,7 +148,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "SPIEGELONLINE"})
+      (>! ws-channel {:topic :user-tree :data "tagesschau"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
