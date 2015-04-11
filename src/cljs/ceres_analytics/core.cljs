@@ -120,7 +120,7 @@
         links (get-in @state [:data :new-links])]
     (println "Starting vis...")
     (go-loop [k 5]
-      (if (= k 10)
+      (if (= k 11)
         (println "done")
         (do
           (loop [i 0]
