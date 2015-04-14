@@ -10,7 +10,7 @@
             [clj-time.core :as t]))
 
 
-(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 4 11)})
+(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 4 7)})
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -65,5 +65,11 @@
   (->> (mc/find-maps @db "messages")
        (map (comp (fn [d] [(t/month d) (t/day d)]) :ts))
        )
+
+  (->> (mc/find-maps @db "messages" {:ts {$gt (t/date-time 2015 4 3)}})
+       (pmap (comp t/day :ts))
+       frequencies
+       (sort-by first))
+
 
   )

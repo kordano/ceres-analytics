@@ -120,7 +120,7 @@
         links (get-in @state [:data :new-links])]
     (println "Starting vis...")
     (go-loop [k 5]
-      (if (= k 11)
+      (if (= k 7)
         (println "done")
         (do
           (loop [i 0]
@@ -148,7 +148,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "tagesschau"})
+      (>! ws-channel {:topic :user-tree :data "SZ"})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
