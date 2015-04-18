@@ -65,6 +65,9 @@
 
   (def users  (mc/find-maps @db "users" {:name {$in news-accounts}}))
 
+
+  (aprint (apply merge (map (fn [{:keys [_id name]}] {name (mc/count @db "pubs" {:source _id})}) users)))
+
   (->> nodes (map (fn [d] [d (mc/count @db d)])) (into {}) aprint)
 
   (->> links (map (fn [d] [d (mc/count @db d)])) (into {}) aprint)

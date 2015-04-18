@@ -44,19 +44,18 @@
                               (fn [{:keys [source target ts]}]
                                 {:source target
                                  :target (:_id user)
-                                 :ts (c/to-string ts)
+                                 :ts ts
                                  :group 2})
                               #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
                               #(mc/find-map-by-id @db "messages" (:target %))))
                    (apply concat))
         nodes (->> links
                    (map (comp (fn [{:keys [_id text group ts]}]
-                                {:name _id :value text :group group :ts (c/to-string ts)})
+                                {:name _id :value text :group group :ts ts})
                               (fn [{:keys [source group]}]
                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
     {:nodes (mapv #(update-in % [:name] str) nodes)
      :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str)) (remove #(= (:name user-node) (:target %)) links))}))
-
 
 
 (comment
@@ -71,5 +70,16 @@
        frequencies
        (sort-by first))
 
+  (mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 1)}})
+
+
+  (->> (get-user-tree "tagesschau")
+      :nodes
+      (sort-by :ts t/before?)
+      (partition-by (comp t/day :ts))
+      first
+      (partition-by (comp t/hour :ts))
+      first
+      (partition-by (comp t/minute :ts)))
 
   )
