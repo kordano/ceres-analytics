@@ -5,6 +5,7 @@
             [monger.joda-time]
             [clj-time.core :as t]
             [monger.operators :refer :all]
+            [aprint.core :refer [aprint]]
             [monger.query :refer :all]))
 
 (def contacts ["shares" "replies" "retweets" "tagrefs" "pubs"])
@@ -60,3 +61,24 @@
   [cs]
   (let [sorted-cs (sort-by :ts cs)]
     (t/in-seconds (t/interval (last cs) (first cs)))))
+
+
+(defn density
+  "Computes the density of the network at time t_0"
+  [entity t0]
+  (when (= entity :full)
+    (let [node-count (reduce + (map #(mc/count @db % {:ts {$lt t0}}) nodes))]
+      ((comp float /) (reduce + (map #(mc/count @db % {:ts {$lt t0}}) contacts))
+         (* node-count (dec node-count))))))
+
+
+(comment
+
+  (-> (dynamic-expansion :assignments (t/date-time 2015 4) (t/date-time 2015 5))
+      vals
+      first
+      count)
+
+  (aprint (map #(density :full (t/date-time 2015 4 %)) (range 3 20)))
+
+  )
