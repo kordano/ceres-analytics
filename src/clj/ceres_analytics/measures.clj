@@ -81,4 +81,6 @@
 
   (aprint (map #(density :full (t/date-time 2015 4 %)) (range 3 20)))
 
+  (aprint (mc/find-maps @db "users" {:name "SZ"}))
+
   )
