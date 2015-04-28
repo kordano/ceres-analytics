@@ -79,8 +79,13 @@
       first
       count)
 
-  (aprint (map #(density :full (t/date-time 2015 4 %)) (range 3 20)))
 
-  (aprint (mc/find-maps @db "users" {:name "SZ"}))
+  (aprint (zipmap
+           (range 2 28)
+           (map
+            #(mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 %)
+                                            $lt (t/date-time 2015 4 (inc %))}})
+            (range 2 28))))
+
 
   )
