@@ -22,6 +22,7 @@
     :publications "pubs"
     :cascades cascades
     :assignments "tagrefs"
+    :unknown "unknown"
     :unrelated))
 
 
@@ -59,8 +60,15 @@
 (defn lifetime
   "Computes lifetime of contact set"
   [cs]
-  (let [sorted-cs (sort-by :ts cs)]
-    (t/in-seconds (t/interval (last cs) (first cs)))))
+  (zipmap
+   (keys cs)
+   (map
+    #(let [sorted-cs (sort-by :ts %)]
+       (-> (t/interval (-> % first :ts) (-> % last :ts))
+           t/in-seconds
+           (/ 3600)
+           float))
+    (vals cs))))
 
 
 (defn density
@@ -71,6 +79,25 @@
       ((comp float /) (reduce + (map #(mc/count @db % {:ts {$lt t0}}) contacts))
          (* node-count (dec node-count))))))
 
+(defn subset-size
+  "Computes size of given contact set"
+  [cs]
+  (zipmap
+   (keys cs)
+   (map count (vals cs))))
+
+
+(defn intercontact-times
+  "Computes average inter-contact times"
+  [cs]
+  (zipmap
+   (keys cs)
+   (map
+    (fn [sub-cs]
+      (let [sorted-cs (sort-by :ts sub-cs)]
+        (reduce + #(t/in-seconds (t/interval (:ts %1) (:ts %2))))))
+    (vals cs))))
+
 
 (comment
 
@@ -79,13 +106,23 @@
       first
       count)
 
-
   (aprint (zipmap
-           (range 2 28)
+           (range 3 28)
            (map
             #(mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 %)
                                             $lt (t/date-time 2015 4 (inc %))}})
-            (range 2 28))))
+            (range 3 28))))
 
+  (-> (dynamic-expansion :contacts (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+      subset-size
+      aprint)
+
+  (-> (dynamic-expansion :unknown (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+      lifetime
+      aprint)
+
+  (-> (dynamic-expansion :nodes (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+      lifetime
+      aprint)
 
   )
