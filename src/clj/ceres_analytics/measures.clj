@@ -107,21 +107,21 @@
       count)
 
   (aprint (zipmap
-           (range 3 28)
+           (range 3 29)
            (map
             #(mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 %)
                                             $lt (t/date-time 2015 4 (inc %))}})
-            (range 3 28))))
+            (range 3 29))))
 
-  (-> (dynamic-expansion :contacts (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+  (-> (dynamic-expansion :contacts (t/date-time 2015 4 3) (t/date-time 2015 4 29))
       subset-size
       aprint)
 
-  (-> (dynamic-expansion :unknown (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+  (-> (dynamic-expansion :unknown (t/date-time 2015 4 3) (t/date-time 2015 4 29))
       lifetime
       aprint)
 
-  (-> (dynamic-expansion :nodes (t/date-time 2015 4 3) (t/date-time 2015 4 28))
+  (-> (dynamic-expansion :nodes (t/date-time 2015 4 3) (t/date-time 2015 4 29))
       lifetime
       aprint)
 
