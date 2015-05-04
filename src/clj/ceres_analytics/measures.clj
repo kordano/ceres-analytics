@@ -8,7 +8,7 @@
             [aprint.core :refer [aprint]]
             [monger.query :refer :all]))
 
-(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs"])
+(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 

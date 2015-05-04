@@ -40,9 +40,9 @@
    :quantiles (let [probs [0.0 0.001 0.25 0.5 0.75 0.999 1.0]]
                 (zipmap probs (quantile coll :probs probs)))})
 
-(def nodes ["users" "messages" "htmls" "urls" "tags" ])
+(def nodes ["users" "messages" "tags" ])
 
-(def links ["mentions" "shares" "replies" "retweets" "urlrefs" "tagrefs" "unknown"])
+(def cascades ["mentions" "shares" "replies" "retweets" "pubs" "unknown"])
 
 (defn get-random-links [{:keys [user interval]}]
   (let [[start-time end-time] interval]
