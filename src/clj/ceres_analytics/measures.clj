@@ -111,6 +111,26 @@
        (map
         (fn [sub-cs]
           (map
-           (comp #(map degree %) #(mc/find-maps @db % {:ts {$lt t0}}))
+           (comp
+            #(apply max %)
+            #(map degree %)
+            #(mc/find-maps @db % {:ts {$lt t0}}))
            sub-cs))))
       (apply max (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
+
+(defn min-degree
+  "Compute minimum degree"
+  [entity t0]
+  (let [cs (dispatch-entity entity)]
+    (if (vector? cs)
+      (zipmap
+       (keys cs)
+       (map
+        (fn [sub-cs]
+          (map
+           (comp
+            #(apply min %)
+            #(map degree %)
+            #(mc/find-maps @db % {:ts {$lt t0}}))
+           sub-cs))))
+      (apply min (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
