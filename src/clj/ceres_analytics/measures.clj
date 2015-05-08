@@ -32,9 +32,6 @@
   [entity t1 t2]
   (let [colls (dispatch-entity entity)]
     (if (vector? colls)
-      (zipmap colls
-              (map #(mc/find-maps @db % {:ts {$gt t1
-                                              $lt t2}}) colls))
       {colls
        (mc/find-maps @db colls {:ts {$gt t1
                                      $lt t2}})})))
@@ -97,3 +94,23 @@
       (let [sorted-cs (sort-by :ts sub-cs)]
         (reduce + #(t/in-seconds (t/interval (:ts %1) (:ts %2))))))
     (vals cs))))
+
+
+(defn total-degree
+  "Compute total degree of contact set"
+  [cs]
+  (* 2 (reduce + (map #(mc/count @db %) cs))))
+
+(defn max-degree
+  "Compute maximum degree"
+  [entity t0]
+  (let [cs (dispatch-entity entity)]
+    (if (vector? cs)
+      (zipmap
+       (keys cs)
+       (map
+        (fn [sub-cs]
+          (map
+           (comp #(map degree %) #(mc/find-maps @db % {:ts {$lt t0}}))
+           sub-cs))))
+      (apply max (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
