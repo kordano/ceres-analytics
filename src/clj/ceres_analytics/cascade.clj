@@ -10,7 +10,7 @@
             [clj-time.core :as t]))
 
 
-(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 4 7)})
+(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 5 5)})
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -75,12 +75,8 @@
 
   (->> (get-user-tree "tagesschau")
       :nodes
-      (sort-by :ts t/before?)
-      (partition-by (comp t/day :ts))
-      first
-      (partition-by (comp t/hour :ts))
-      first
-      (partition-by (comp t/minute :ts)))
+      count
+      time)
 
 
 

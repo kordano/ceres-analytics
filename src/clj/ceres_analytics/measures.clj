@@ -98,8 +98,8 @@
 
 (defn total-degree
   "Compute total degree of contact set"
-  [cs]
-  (* 2 (reduce + (map #(mc/count @db %) cs))))
+  [cs t0]
+  (* 2 (mc/count @db cs {:ts {$gt t0 $lt (t/plus t0 (t/days 1))}})))
 
 (defn max-degree
   "Compute maximum degree"
