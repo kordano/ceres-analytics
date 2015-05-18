@@ -134,3 +134,4 @@
             #(mc/find-maps @db % {:ts {$lt t0}}))
            sub-cs))))
       (apply min (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
+
