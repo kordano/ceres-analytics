@@ -5,7 +5,7 @@
             [monger.joda-time]
             [clj-time.core :as t]
             [monger.operators :refer :all]
-            [aprint.core :refer [aprint]]
+            [aprint.core :refer [ap]]
             [monger.query :refer :all]))
 
 (def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
@@ -135,3 +135,35 @@
            sub-cs))))
       (apply min (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
 
+
+(defn modularity
+  "Computes the modularity of between two entites"
+  [v0 v1 cs t0]
+  (/ (* (degree v0 t0) (degree v1 t0))
+     (* 2 (count cs))))
+
+
+(defn topological-eccentricity
+  "Compute topological eccentriciy of given entity"
+  [v0 cs t0]
+  )
+
+
+(defn daily-expansion
+  "Calculates daily expansion of a given time interval"
+  [coll t0 day-range]
+  (map
+   #(mc/count @db coll
+              {:ts {$gt (t/plus t0 (t/days %))
+                    $lt (t/plus t0 (t/days (inc %)))}})
+   day-range))
+
+
+(defn hourly-expansion
+  "Calculates hourly expansion given a collection
+  a time interval and a starting time"
+  [coll t0 hour-range]
+  (map
+   #(mc/count @db coll {:ts {$gt (t/plus t0 (t/hours %))
+                             $lt (t/plus t0 (t/hours (inc %)))}})
+   hour-range))
