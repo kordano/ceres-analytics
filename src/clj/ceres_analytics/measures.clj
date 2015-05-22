@@ -167,3 +167,9 @@
    #(mc/count @db coll {:ts {$gt (t/plus t0 (t/hours %))
                              $lt (t/plus t0 (t/hours (inc %)))}})
    hour-range))
+
+
+(defn daily-values [coll t0 day-range f]
+  (map
+   #(f coll (t/plus t0 (t/days %)) (t/plus t0 (t/days (inc %))))
+   day-range))
