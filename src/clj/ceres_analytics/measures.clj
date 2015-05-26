@@ -98,10 +98,22 @@
     (vals cs))))
 
 
-(defn total-degree
+(defn daily-total-degree
   "Compute total degree of contact set"
-  [cs t0]
-  (* 2 (mc/count @db cs {:ts {$gt t0 $lt (t/plus t0 (t/days 1))}})))
+  [cs t0 daily-range]
+  (map
+   #(* 2 (mc/count @db cs {:ts {$gt (t/plus t0 (t/days %))
+                                $lt (t/plus t0 (t/days (inc %)))}}))
+   daily-range))
+
+(defn hourly-total-degree
+  "Compute total degree of contact set"
+  [cs t0 hourly-range]
+  (map
+   #(* 2 (mc/count @db cs {:ts {$gt (t/plus t0 (t/hours %))
+                                $lt (t/plus t0 (t/hours (inc %)))}}))
+   hourly-range))
+
 
 (defn max-degree
   "Compute maximum degree"
@@ -202,34 +214,9 @@
                        (apply merge)))
           hour-range)))
 
-(defn daily-values [coll t0 day-range f]
-  (map
-   #(f coll (t/plus t0 (t/days %)) (t/plus t0 (t/days (inc %))))
-   day-range))
 
 
 (comment
-
-
-  ;; find all 
-  (->> news-authors
-       (map
-        (fn [{:keys [_id name]}]
-          {name
-           (apply merge-with +
-                  (map
-                   (fn [p]
-                     (zipmap
-                      contacts
-                      (map
-                       #(if (= % "sources")
-                          (mc/count @db % {:target (:target p)})
-                          (mc/count @db % {:source (:target p)}))
-                       contacts)))
-                   (mc/find-maps @db "pubs" {:source _id
-                                             :ts {$gt (t/date-time 2015 4 3)
-                                                  $lt (t/date-time 2015 5 3)}})))}) )
-       (apply merge))
 
   (def t0 (t/date-time 2015 4 3))
 
@@ -237,10 +224,8 @@
 
   (def hour-range (range 0 (inc (* 24 30))))
 
-  (time (news-hourly-expansion t0 hour-range))
-
-  (time (apply concat (news-daily-expansion t0 day-range)))
-  
+   
+ 
   (ap)
 
   )
