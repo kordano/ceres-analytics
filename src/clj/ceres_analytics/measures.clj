@@ -1,6 +1,6 @@
 (ns ceres-analytics.measures
   (:refer-clojure :exclude [find sort])
-  (:require [ceres-analytics.db :refer [db]]
+  (:require [ceres-analytics.db :refer [db broadcasters]]
             [monger.collection :as mc]
             [monger.joda-time]
             [clj-time.core :as t]
@@ -8,9 +8,11 @@
             [aprint.core :refer [ap]]
             [monger.query :refer :all]))
 
-(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
+(def contacts ["shares" "replies" "retweets" "tagrefs" "sources" "unknown"])
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
+
+(def news-authors (take 13 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}}))))
 
 (defn dispatch-entity [entity]
   (case entity
@@ -168,8 +170,48 @@
                              $lt (t/plus t0 (t/hours (inc %)))}})
    hour-range))
 
+(defn new-hourly-expansion
+  "Calculates hourly expansion given a collection
+  a time interval and a starting time"
+  [coll t0 hour-range]
+  (let [news-authors (take 13 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}})))]
+    (map
+     #(mc/count @db coll {:ts {$gt (t/plus t0 (t/hours %))
+                               $lt (t/plus t0 (t/hours (inc %)))}})
+     hour-range)))
 
 (defn daily-values [coll t0 day-range f]
   (map
    #(f coll (t/plus t0 (t/days %)) (t/plus t0 (t/days (inc %))))
    day-range))
+
+
+(comment
+
+
+  ;; find all 
+  (->> news-authors
+       (map
+        (fn [{:keys [_id name]}]
+          {name
+           (apply merge-with +
+                  (map
+                   (fn [p]
+                     (zipmap
+                      contacts
+                      (map
+                       #(if (= % "sources")
+                         (mc/count @db % {:target (:target p)})
+                         (mc/count @db % {:source (:target p)}))
+                       contacts)))
+                   (mc/find-maps @db "pubs" {:source _id
+                                             :ts {$gt (t/date-time 2015 4 3)
+                                                  $lt (t/date-time 2015 5 3)}})))}) )
+       (apply merge)
+       time)
+
+
+  
+  (ap)
+
+  )
