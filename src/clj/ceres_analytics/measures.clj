@@ -170,15 +170,37 @@
                              $lt (t/plus t0 (t/hours (inc %)))}})
    hour-range))
 
-(defn new-hourly-expansion
+(defn news-daily-expansion
+  "Calculates daily expansion of a given time interval"
+  [news-users t0 day-range]
+  (map
+   (fn [d]
+     (map
+      (fn [{:keys [_id name]}]
+        [name
+         (mc/count @db "pubs"
+                   {:source _id
+                    :ts {$gt (t/plus t0 (t/days d))
+                         $lt (t/plus t0 (t/days (inc d)))}})
+         d])
+      news-users))
+   day-range))
+
+(defn news-hourly-expansion
   "Calculates hourly expansion given a collection
   a time interval and a starting time"
-  [coll t0 hour-range]
-  (let [news-authors (take 13 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}})))]
-    (map
-     #(mc/count @db coll {:ts {$gt (t/plus t0 (t/hours %))
-                               $lt (t/plus t0 (t/hours (inc %)))}})
-     hour-range)))
+  [t0 hour-range]
+  (apply merge-with concat
+         (map
+          (fn [h] (->> news-authors
+                       (map
+                        (fn [{:keys [_id name]}]
+                          {name
+                           [(mc/count @db "pubs" {:source _id
+                                                   :ts {$gt (t/plus t0 (t/hours h))
+                                                        $lt (t/plus t0 (t/hours (inc h)))}})]}) )
+                       (apply merge)))
+          hour-range)))
 
 (defn daily-values [coll t0 day-range f]
   (map
@@ -201,16 +223,23 @@
                       contacts
                       (map
                        #(if (= % "sources")
-                         (mc/count @db % {:target (:target p)})
-                         (mc/count @db % {:source (:target p)}))
+                          (mc/count @db % {:target (:target p)})
+                          (mc/count @db % {:source (:target p)}))
                        contacts)))
                    (mc/find-maps @db "pubs" {:source _id
                                              :ts {$gt (t/date-time 2015 4 3)
                                                   $lt (t/date-time 2015 5 3)}})))}) )
-       (apply merge)
-       time)
+       (apply merge))
 
+  (def t0 (t/date-time 2015 4 3))
 
+  (def day-range (range 0 31))
+
+  (def hour-range (range 0 (inc (* 24 30))))
+
+  (time (news-hourly-expansion t0 hour-range))
+
+  (time (apply concat (news-daily-expansion t0 day-range)))
   
   (ap)
 
