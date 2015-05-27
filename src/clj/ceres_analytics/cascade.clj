@@ -3,6 +3,7 @@
   (:require [monger.collection :as mc]
             [monger.core :as mg]
             [aprint.core :refer [ap]]
+            [incanter.stats :as stats]
             [monger.joda-time]
             [monger.operators :refer :all]
             [monger.query :refer :all]
@@ -22,9 +23,9 @@
 (defn find-links [{:keys [source target group ts] :as link}]
   (let [colls {"replies" 3 "retweets" 4 "shares" 5}]
     (conj (apply concat
-                 (map (fn [coll]
+                 (pmap (fn [coll]
                         (apply concat
-                               (map
+                               (pmap
                                 (fn [{:keys [source target ts]}]
                                   (find-links {:source source
                                                :target target
@@ -41,7 +42,7 @@
         user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts day})))
         links (->> (mc/find-maps @db "sources" {:ts day :target {$in pubs}})
-                   (map (comp find-links
+                   (pmap (comp find-links
                               (fn [{:keys [source target ts]}]
                                 {:source target
                                  :target (:_id user)
@@ -51,22 +52,18 @@
                               #(mc/find-map-by-id @db "messages" (:target %)))))
         nodes (->> links
                    (apply concat)
-                   (map (comp (fn [{:keys [_id text group ts]}]
+                   (pmap (comp (fn [{:keys [_id text group ts]}]
                                 {:name _id :value text :group group :ts ts})
                               (fn [{:keys [source group]}]
                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
     {:nodes (mapv #(update-in % [:name] str) nodes)
      :links (->> links
                  (pmap
-                  (comp
-                   #(mapv (comp (fn [l] (update-in l [:source] str))
-                                (fn [l] (update-in l [:target] str))) %)
-                   #(remove (fn [l] (= (:name user-node) (:target l))) %)))
-                 vec)
-     #_(mapv
-        (comp #(update-in % [:source] str)
-              #(update-in % [:target] str))
-        (remove #(= (:name user-node) (:target %)) links))}))
+                  #(remove (fn [l] (= (:name user-node) (:target l))) %)
+                  ;; only for frontend visualisation needed
+                  #_(comp #(mapv (comp (fn [l] (update-in l [:source] str))
+                                       (fn [l] (update-in l [:target] str))) %))) 
+                 vec)}))
 
 
 (comment
@@ -96,10 +93,26 @@
               #(->> (get-user-tree (:name %)))
               news-authors))))
 
-  (->> (get compounds "SZ")
-       :links
-       first
-       count)
+  (->> news-authors
+       (pmap
+        (fn [{:keys [name]}]
+          [name
+           (->> (get compounds name )
+                :links
+                (pmap (fn [ls] (let [contact-times (map (comp c/to-long :ts) ls)]
+                                 (if (empty? contact-times)
+                                   0
+                                   (->> (t/interval
+                                         (c/from-long (apply min contact-times))
+                                         (c/from-long (apply max contact-times)))
+                                        t/in-minutes
+                                        Math/floor)))))
+                stats/mean)]))
+       (into {})
+       time)
+
+
+  
   
   (ap)
 
