@@ -2,10 +2,11 @@
   (:refer-clojure :exclude [find sort])
   (:require [monger.collection :as mc]
             [monger.core :as mg]
-            [aprint.core :refer [aprint]]
+            [aprint.core :refer [ap]]
             [monger.joda-time]
             [monger.operators :refer :all]
             [monger.query :refer :all]
+            [ceres-analytics.measures :refer [news-authors]]
             [clj-time.coerce :as c]
             [clj-time.core :as t]))
 
@@ -47,15 +48,25 @@
                                  :ts ts
                                  :group 2})
                               #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
-                              #(mc/find-map-by-id @db "messages" (:target %))))
-                   (apply concat))
+                              #(mc/find-map-by-id @db "messages" (:target %)))))
         nodes (->> links
+                   (apply concat)
                    (map (comp (fn [{:keys [_id text group ts]}]
                                 {:name _id :value text :group group :ts ts})
                               (fn [{:keys [source group]}]
                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
     {:nodes (mapv #(update-in % [:name] str) nodes)
-     :links (mapv (comp #(update-in % [:source] str) #(update-in % [:target] str)) (remove #(= (:name user-node) (:target %)) links))}))
+     :links (->> links
+                 (pmap
+                  (comp
+                   #(mapv (comp (fn [l] (update-in l [:source] str))
+                                (fn [l] (update-in l [:target] str))) %)
+                   #(remove (fn [l] (= (:name user-node) (:target l))) %)))
+                 vec)
+     #_(mapv
+        (comp #(update-in % [:source] str)
+              #(update-in % [:target] str))
+        (remove #(= (:name user-node) (:target %)) links))}))
 
 
 (comment
@@ -73,11 +84,23 @@
   (mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 1)}})
 
 
+
   (->> (get-user-tree "tagesschau")
-      :nodes
-      count
-      time)
+       :nodes
+       count)
+  
+  (time 
+   (def compounds 
+     (zipmap (map :name news-authors) 
+             (map 
+              #(->> (get-user-tree (:name %)))
+              news-authors))))
 
-
+  (->> (get compounds "SZ")
+       :links
+       first
+       count)
+  
+  (ap)
 
   )

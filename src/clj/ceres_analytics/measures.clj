@@ -223,7 +223,6 @@
   (def day-range (range 0 31))
 
   (def hour-range (range 0 (inc (* 24 30))))
-
    
  
   (ap)
