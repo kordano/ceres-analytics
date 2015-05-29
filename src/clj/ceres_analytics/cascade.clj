@@ -12,7 +12,7 @@
             [clj-time.core :as t]))
 
 
-(def day {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 5 5)})
+(def time-slice-0 {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 5 5)})
 
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -20,7 +20,7 @@
            (mg/get-db (mg/connect sa opts) "juno"))))
 
 
-(defn find-links [{:keys [source target group ts] :as link}]
+(defn find-links [{:keys [source target group ts] :as link} time-slice]
   (let [colls {"replies" 3 "retweets" 4 "shares" 5}]
     (conj (apply concat
                  (pmap (fn [coll]
@@ -30,19 +30,20 @@
                                   (find-links {:source source
                                                :target target
                                                :ts (c/to-string ts)
-                                               :group (colls coll)}))
+                                               :group (colls coll)}
+                                              time-slice))
                                 (mc/find-maps @db coll {:target source
-                                                        :ts day}))))
+                                                        :ts time-slice}))))
                       (keys colls)))
           link)))
 
 
-(defn get-user-tree [username]
+(defn get-user-tree [username time-slice]
   (let [user (mc/find-one-as-map @db "users" {:name username})
         user-node {:name (:_id user) :value (:name user) :group 1}
-        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts day})))
-        links (->> (mc/find-maps @db "sources" {:ts day :target {$in pubs}})
-                   (pmap (comp find-links
+        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts time-slice})))
+        links (->> (mc/find-maps @db "sources" {:ts time-slice :target {$in pubs}})
+                   (pmap (comp #(find-links % time-slice)
                               (fn [{:keys [source target ts]}]
                                 {:source target
                                  :target (:_id user)
@@ -66,38 +67,14 @@
                  vec)}))
 
 
-(comment
-
-
-  (->> (mc/find-maps @db "messages")
-       (map (comp (fn [d] [(t/month d) (t/day d)]) :ts))
-       )
-
-  (->> (mc/find-maps @db "messages" {:ts {$gt (t/date-time 2015 4 3)}})
-       (pmap (comp t/day :ts))
-       frequencies
-       (sort-by first))
-
-  (mc/count @db "messages" {:ts {$gt (t/date-time 2015 4 1)}})
-
-
-
-  (->> (get-user-tree "tagesschau")
-       :nodes
-       count)
-  
-  (time 
-   (def compounds 
-     (zipmap (map :name news-authors) 
-             (map 
-              #(->> (get-user-tree (:name %)))
-              news-authors))))
-
-  (->> news-authors
+(defn lifetimes
+  ""
+  [users compounds]
+  (->> users
        (pmap
         (fn [{:keys [name]}]
           [name
-           (->> (get compounds name )
+           (->> (get compounds name)
                 :links
                 (pmap (fn [ls] (let [contact-times (map (comp c/to-long :ts) ls)]
                                  (if (empty? contact-times)
@@ -108,12 +85,25 @@
                                         t/in-minutes
                                         Math/floor)))))
                 stats/mean)]))
-       (into {})
-       time)
+       (into {})))
 
 
+(defn compounds [users time-slice]
+  (zipmap (pmap :name users) 
+          (pmap #(get-user-tree (:name %) time-slice) users)))
+
+(comment
   
+  (->> (mc/find-maps @db "tagrefs" {:ts {$gt (t/date-time 2015 4 5)
+                                         $lt (t/date-time 2015 5 5)}})
+       (map :target)
+       frequencies
+       (sort-by val >)
+       (take 20)
+       (map (fn [[k v]] [(:text (mc/find-map-by-id @db "tags" k)) v])))
+
   
   (ap)
 
   )
+ 

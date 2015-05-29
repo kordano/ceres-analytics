@@ -1,5 +1,9 @@
 (ns ceres-analytics.db
-  (:require [monger.core :as mg]))
+  (:refer-clojure :exclude [find sort])
+  (:require [monger.core :as mg]
+            [monger.collection :as mc]
+            [monger.operators :refer :all]
+            [monger.query :refer :all]))
 
 
 (def db (atom
@@ -8,3 +12,5 @@
            (mg/get-db (mg/connect sa opts) "juno"))))
 
 (def broadcasters #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "N24_de" "sternde" "focusonline"})
+
+(def news-users (map :_id (take 13 (mc/find-maps @db "users" {:name {$in broadcasters}}))))

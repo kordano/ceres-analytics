@@ -3,6 +3,7 @@
   (:require [ceres-analytics.db :refer [db broadcasters]]
             [monger.collection :as mc]
             [monger.joda-time]
+            [incanter.stats :as stats]
             [clj-time.core :as t]
             [monger.operators :refer :all]
             [aprint.core :refer [ap]]
@@ -12,7 +13,7 @@
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
-(def news-authors (take 13 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}}))))
+(def news-authors (take 14 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}}))))
 
 (defn dispatch-entity [entity]
   (case entity
@@ -215,6 +216,12 @@
           hour-range)))
 
 
+(defn statistics [coll]
+  (let [percentiles [0 0.5 1]
+        quantiles (zipmap [:q0 :q50 :q100] (stats/quantile coll :probs percentiles))]
+    (merge quantiles
+    {:mean (stats/mean coll)
+     :sd  (stats/sd coll)})))
 
 (comment
 
@@ -226,5 +233,6 @@
    
  
   (ap)
-
+  
+  
   )

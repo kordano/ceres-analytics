@@ -32,6 +32,10 @@
 
 (def custom-formatter (f/formatter "E MMM dd HH:mm:ss Z YYYY"))
 
+(def t0 (t/date-time 2015 4 3))
+(def day-range (range 0 31))
+(def hour-range (range 0 (inc (* 24 30))))
+
 (def news-accounts #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "N24_de" "sternde" "focusonline"})
 
 (defn short-metrics [coll]
