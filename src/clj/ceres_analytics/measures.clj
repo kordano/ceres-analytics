@@ -70,6 +70,32 @@
            float))
     (vals cs))))
 
+(defn order
+  "Computes order of the network at different granularity levels"
+  [n to tmax granularity]
+  (case granularity
+    :hourly
+    (zipmap
+     n
+     (map
+      (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+        (zipmap
+         hour-range
+         (map
+          #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                 $lt (t/plus t0 (t/hours (inc h)))}})
+          hour-range)))))
+    :daily
+    (let [day-range (range (t/in-hours (t/interval t0 tmax)))]
+      (zipmap
+       n
+       (map
+        #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                               $lt (t/plus t0 (t/hours (inc h)))}})
+        n)))
+    :time nil
+    :unknown))
+
 
 ;; --- density ---
 (defn density
