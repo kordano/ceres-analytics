@@ -9,7 +9,7 @@
             [aprint.core :refer [ap]]
             [monger.query :refer :all]))
 
-(def contacts ["shares" "replies" "retweets" "tagrefs" "sources" "unknown"])
+(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
@@ -71,13 +71,64 @@
     (vals cs))))
 
 
+;; --- density ---
 (defn density
   "Computes the density of the network at time t_0"
-  [entity t0]
-  (when (= entity :full)
-    (let [node-count (reduce + (map #(mc/count @db % {:ts {$lt t0}}) nodes))]
-      ((comp float /) (reduce + (map #(mc/count @db % {:ts {$lt t0}}) contacts))
-         (* node-count (dec node-count))))))
+  [n c t0 tmax granularity]
+  (case granularity
+    :hourly 
+    (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+      (map
+       (fn [h]
+         (let [node-count (reduce
+                           +
+                           (pmap
+                            #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                   $lt (t/plus t0 (t/hours (inc h)))}}) n))]
+           ((comp float /)
+            (reduce +
+                    (pmap #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                 $lt (t/plus t0 (t/hours (inc h)))}}) c))
+            (* node-count (dec node-count)))))
+       hour-range))
+    :daily
+    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
+      (zipmap
+       day-range
+       (map
+        (fn [d]
+          (let [node-count (reduce
+                            +
+                            (pmap
+                             #(mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                                    $lt (t/plus t0 (t/days (inc d)))}}) n))]
+            ((comp float /)
+             (reduce +
+                     (pmap #(mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                                  $lt (t/plus t0 (t/days (inc d)))}}) c))
+             (* node-count (dec node-count)))))
+        day-range)))
+    :time
+    (->> (range (t/in-hours (t/interval t0 tmax)))
+         (map
+          (fn [h]
+            (let [node-count (reduce
+                              +
+                              (map
+                               #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                      $lt (t/plus t0 (t/hours (inc h)))}}) n))]
+              {(mod h 24 )
+               ((comp float /)
+                (reduce +
+                        (map #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                     $lt (t/plus t0 (t/hours (inc h)))}}) c))
+                (* node-count (dec node-count)))})))
+         (apply merge-with +)
+         (map (fn [[k v]] [k (/ v (t/in-days (t/interval t0 tmax)))]))
+         (into {}))
+    :unknown))
+
+
 
 (defn subset-size
   "Computes size of given contact set"
@@ -98,14 +149,22 @@
         (reduce + #(t/in-seconds (t/interval (:ts %1) (:ts %2))))))
     (vals cs))))
 
-
+;; --- total degree ---
 (defn daily-total-degree
   "Compute total degree of contact set"
   [cs t0 daily-range]
-  (map
-   #(* 2 (mc/count @db cs {:ts {$gt (t/plus t0 (t/days %))
-                                $lt (t/plus t0 (t/days (inc %)))}}))
-   daily-range))
+  (zipmap
+   cs 
+   (map
+    (fn [c]
+      (zipmap
+       daily-range
+       (map
+        #(* 2
+            (mc/count @db c {:ts {$gt (t/plus t0 (t/days %))
+                                  $lt (t/plus t0 (t/days (inc %)))}}))
+        daily-range)))
+    cs)))
 
 (defn hourly-total-degree
   "Compute total degree of contact set"
@@ -114,6 +173,21 @@
    #(* 2 (mc/count @db cs {:ts {$gt (t/plus t0 (t/hours %))
                                 $lt (t/plus t0 (t/hours (inc %)))}}))
    hourly-range))
+
+
+(defn tod-total-degree
+  "Compute total degree for each day of time of day"
+  [cs t0 tmax]
+  (zipmap
+    cs
+    (map
+     (comp
+      #(into {} %)
+      #(map (fn [[k v]] [k (* v 2)]) %)
+      frequencies
+      (fn [cs] (map (comp t/hour :ts) cs))
+      #(mc/find-maps @db % {:ts {$gt t0 $lt tmax}}))
+     cs)))
 
 
 (defn max-degree
@@ -217,22 +291,35 @@
 
 
 (defn statistics [coll]
-  (let [percentiles [0 0.5 1]
-        quantiles (zipmap [:q0 :q50 :q100] (stats/quantile coll :probs percentiles))]
+  (let [percentiles {:q0 0 :q50 0.5 :q100 1}
+        quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
     (merge quantiles
     {:mean (stats/mean coll)
      :sd  (stats/sd coll)})))
 
+
+(defn format-to-table-view
+  "Formats statistics to mean, sd, median, minimum, maximum"
+  [{:keys [mean sd q0 q50 q100]}]
+  [mean sd q50 q0 q100])
+
+
 (comment
 
-  (def t0 (t/date-time 2015 4 3))
+  (def t0 (t/date-time 2015 4 5))
+  
+  (def tmax (t/date-time 2015 5 5))
 
+  
   (def day-range (range 0 31))
 
   (def hour-range (range 0 (inc (* 24 30))))
-   
- 
+
+  (tod-total-degree contacts t0 tmax)
+
+  (time (statistics (density nodes contacts t0 tmax :hourly)))
+  
   (ap)
-  
-  
+
+
   )

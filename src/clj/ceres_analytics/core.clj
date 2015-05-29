@@ -32,7 +32,9 @@
 
 (def custom-formatter (f/formatter "E MMM dd HH:mm:ss Z YYYY"))
 
-(def t0 (t/date-time 2015 4 3))
+(def t0 (t/date-time 2015 4 5))
+(def tmax (t/date-time 2015 5 5))
+
 (def day-range (range 0 31))
 (def hour-range (range 0 (inc (* 24 30))))
 
