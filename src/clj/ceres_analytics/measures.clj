@@ -219,17 +219,6 @@
 
 
 
-(defn intercontact-times
-  "Computes average inter-contact times"
-  [cs]
-  (zipmap
-   (keys cs)
-   (map
-    (fn [sub-cs]
-      (let [sorted-cs (sort-by :ts sub-cs)]
-        (reduce + #(t/in-seconds (t/interval (:ts %1) (:ts %2))))))
-    (vals cs))))
-
 ;; --- total degree ---
 (defn daily-total-degree
   "Compute total degree of contact set"
@@ -363,7 +352,7 @@
     :unknown))
 
 (defn inter-contact-times
-  ""
+  "Compute intercontact times of given cascades between given t0 and tmax on given granularity level "
   [cs t0 tmax granularity]
   (case granularity
     :hourly
@@ -442,9 +431,9 @@
   (ap)
 
 
-  (def p1 (contact-latency ["pubs"] t0 (t/date-time 2015 4 25) :time))
+  (def p1 (inter-contact-times ["pubs"] t0 (t/date-time 2015 4 25) :time))
 
-  (def p2 (contact-latency ["pubs"] (t/date-time 2015 4 25) (t/date-time 2015 5 5) :time))
+  (def p2 (inter-contact-times ["pubs"] (t/date-time 2015 4 25) (t/date-time 2015 5 5) :time))
 
   
   ;; Calculate pubs contact latency in 15 day steps
