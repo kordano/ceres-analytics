@@ -5,6 +5,7 @@
             [monger.joda-time]
             [incanter.stats :as stats]
             [clj-time.core :as t]
+            [clj-time.coerce :as c]
             [monger.operators :refer :all]
             [aprint.core :refer [ap]]
             [monger.query :refer :all]))
@@ -19,32 +20,15 @@
   (let [percentiles {:q0 0 :q50 0.5 :q100 1}
         quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
     (merge quantiles
-    {:mean (stats/mean coll)
+           {:mean (stats/mean coll)
+            :count (count coll)
      :sd  (stats/sd coll)})))
 
-(defn dispatch-entity [entity]
-  (case entity
-    :nodes nodes
-    :users "users"
-    :messages "messages"
-    :topics "tags"
-    :contacts contacts
-    :publications "pubs"
-    :cascades cascades
-    :assignments "tagrefs"
-    :unknown "unknown"
-    :unrelated))
 
-
-(defn dynamic-expansion
-  "Computes the dynamic expansion of specific
-  entity type between t1 and t2"
-  [entity t1 t2]
-  (let [colls (dispatch-entity entity)]
-    (if (vector? colls)
-      {colls
-       (mc/find-maps @db colls {:ts {$gt t1
-                                     $lt t2}})})))
+(defn format-to-table-view
+  "Formats statistics to mean, sd, median, minimum, maximum"
+  [{:keys [count mean sd q0 q50 q100]}]
+  [mean sd q50 q0 q100 count])
 
 
 (defn neighborhood
@@ -123,7 +107,6 @@
 
 
 
-
 (defn order
   "Computes order of the network at different granularity levels"
   [n t0 tmax granularity]
@@ -132,12 +115,12 @@
     (zipmap
      n
      (map
-      #(let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-         (statistics
-          (map
-           (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                         $lt (t/plus t0 (t/hours (inc h)))}}))
-           hour-range)))
+      #(->> (range (t/in-hours (t/interval t0 tmax)))
+            (map
+             (fn [h]
+               (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                     $lt (t/plus t0 (t/hours (inc h)))}})))
+            statistics)
       n))
     :daily
     (zipmap
@@ -173,20 +156,20 @@
   [n c t0 tmax granularity]
   (case granularity
     :hourly 
-    (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-      (map
-       (fn [h]
-         (let [node-count (reduce
-                           +
-                           (pmap
-                            #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                                   $lt (t/plus t0 (t/hours (inc h)))}}) n))]
-           ((comp float /)
-            (reduce +
-                    (pmap #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                                 $lt (t/plus t0 (t/hours (inc h)))}}) c))
-            (* node-count (dec node-count)))))
-       hour-range))
+    (->> (range (t/in-hours (t/interval t0 tmax)))
+         (map
+          (fn [h]
+            (let [node-count (reduce
+                              +
+                              (pmap
+                               #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                      $lt (t/plus t0 (t/hours (inc h)))}}) n))]
+              ((comp float /)
+               (reduce +
+                       (pmap #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                    $lt (t/plus t0 (t/hours (inc h)))}}) c))
+               (* node-count (dec node-count))))))
+         statistics)
     :daily
     (let [day-range (range (t/in-days (t/interval t0 tmax)))]
       (zipmap
@@ -213,14 +196,14 @@
                               (map
                                #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
                                                       $lt (t/plus t0 (t/hours (inc h)))}}) n))]
-              {(mod h 24 )
-               ((comp float /)
-                (reduce +
-                        (map #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+              {(mod h 24)
+               [((comp float /)
+                 (reduce +
+                         (map #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
                                                      $lt (t/plus t0 (t/hours (inc h)))}}) c))
-                (* node-count (dec node-count)))})))
-         (apply merge-with +)
-         (map (fn [[k v]] [k (/ v (t/in-days (t/interval t0 tmax)))]))
+                 (* node-count (dec node-count)))]})))
+         (apply merge-with concat)
+         (map (fn [[k v]] [k (statistics v)]))
          (into {}))
     :unknown))
 
@@ -232,6 +215,7 @@
   (zipmap
    (keys cs)
    (map count (vals cs))))
+
 
 
 (defn intercontact-times
@@ -286,41 +270,6 @@
      cs)))
 
 
-(defn max-degree
-  "Compute maximum degree"
-  [entity t0]
-  (let [cs (dispatch-entity entity)]
-    (if (vector? cs)
-      (zipmap
-       (keys cs)
-       (map
-        (fn [sub-cs]
-          (map
-           (comp
-            #(apply max %)
-            #(map degree %)
-            #(mc/find-maps @db % {:ts {$lt t0}}))
-           sub-cs))))
-      (apply max (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
-
-(defn min-degree
-  "Compute minimum degree"
-  [entity t0]
-  (let [cs (dispatch-entity entity)]
-    (if (vector? cs)
-      (zipmap
-       (keys cs)
-       (map
-        (fn [sub-cs]
-          (map
-           (comp
-            #(apply min %)
-            #(map degree %)
-            #(mc/find-maps @db % {:ts {$lt t0}}))
-           sub-cs))))
-      (apply min (pmap #(degree (:_id %) t0 ) (mc/find-maps @db cs {:ts {$lt t0}}))))))
-
-
 (defn modularity
   "Computes the modularity of between two entites"
   [v0 v1 cs t0]
@@ -333,25 +282,6 @@
   [v0 cs t0]
   )
 
-
-(defn daily-expansion
-  "Calculates daily expansion of a given time interval"
-  [coll t0 day-range]
-  (map
-   #(mc/count @db coll
-              {:ts {$gt (t/plus t0 (t/days %))
-                    $lt (t/plus t0 (t/days (inc %)))}})
-   day-range))
-
-
-(defn hourly-expansion
-  "Calculates hourly expansion given a collection
-  a time interval and a starting time"
-  [coll t0 hour-range]
-  (map
-   #(mc/count @db coll {:ts {$gt (t/plus t0 (t/hours %))
-                             $lt (t/plus t0 (t/hours (inc %)))}})
-   hour-range))
 
 (defn news-daily-expansion
   "Calculates daily expansion of a given time interval"
@@ -386,13 +316,82 @@
           hour-range)))
 
 
+(defn contact-latency
+  "Compute contact latency on given temporal granularity level for cascades"
+  [cs t0 tmax granularity]
+  (case granularity
+    :hourly
+    (->> cs
+         (map
+          (fn [c]
+            (->> (mc/find-maps @db c {:ts {$gt t0
+                                           $ne nil
+                                           $lt tmax}
+                                      :source {$ne nil}
+                                      :target {$ne nil}})
+                 (pmap
+                  (fn [{:keys [target ts]}]
+                    (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+                      (t/in-seconds
+                       (t/interval target-ts ts))
+                      nil)))
+                 (remove nil?)
+                 statistics)))
+         (zipmap cs))  
+    :daily
+    (->> cs
+         (map
+          (fn [c]
+            (let [day-range (->> (t/interval t0 tmax)
+                                 t/in-days
+                                 range)]
+              (->> day-range
+                   (mapv
+                    (fn [d]
+                      (->> (mc/find-maps @db c {:ts  {$gt (t/plus t0 (t/days d))
+                                                      $lt (t/plus t0 (t/days (inc d)))}
+                                                :source {$ne nil}
+                                                :target {$ne nil}})
+                           (pmap
+                            (fn [{:keys [target ts]}]
+                              (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+                                (/ (t/in-seconds
+                                    (t/interval target-ts ts))
+                                   3600)
+                                nil)))
+                           (remove nil?)
+                           statistics)))
+                   (zipmap day-range)))))
+         (zipmap cs))  
+    :time
+    (->> cs
+         (map
+          (fn [c]
+            (->> (t/interval t0 tmax)
+                 t/in-hours
+                 range
+                 (mapv
+                  (fn [h]
+                    (->> (mc/find-maps @db c {:ts  {$gt (t/plus t0 (t/hours h))
+                                                    $lt (t/plus t0 (t/hours (inc h)))}
+                                              :source {$ne nil}
+                                              :target {$ne nil}})
+                         (pmap
+                          (fn [{:keys [target ts]}]
+                            (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+                              {(mod h 24)
+                               [(/ (t/in-seconds
+                                    (t/interval target-ts ts))
+                                   3600)]}
+                              nil)))
+                         (remove nil?)
+                         (apply merge-with concat))))
+                 (apply merge-with concat)
+                 (map (fn [[k v]] [k (statistics v)]))
+                 (into {}))))
+         (zipmap cs))
+    :unknown))
 
-
-
-(defn format-to-table-view
-  "Formats statistics to mean, sd, median, minimum, maximum"
-  [{:keys [mean sd q0 q50 q100]}]
-  [mean sd q50 q0 q100])
 
 
 (comment
@@ -405,14 +404,10 @@
   (def day-range (range 0 31))
 
   (def hour-range (range 0 (inc (* 24 30))))
+ 
 
-  (tod-total-degree contacts t0 tmax)
-
-  (time (statistics (density nodes contacts t0 tmax :hourly)))
+  (contact-latency cascades t0 tmax :hourly)
   
   (ap)
-
-  (map vals (vals (order nodes t0 tmax :time)))
-
   
-   )
+  )
