@@ -15,6 +15,13 @@
 
 (def news-authors (take 14 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}}))))
 
+(defn statistics [coll]
+  (let [percentiles {:q0 0 :q50 0.5 :q100 1}
+        quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
+    (merge quantiles
+    {:mean (stats/mean coll)
+     :sd  (stats/sd coll)})))
+
 (defn dispatch-entity [entity]
   (case entity
     :nodes nodes
@@ -70,30 +77,93 @@
            float))
     (vals cs))))
 
+
+
+(defn nw-size
+  "Computes size of network on different temporal granularity levels"
+  [cs t0 tmax granularity]
+  (case granularity
+    :hourly
+    (zipmap
+     cs
+     (map
+      #(let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+         (statistics
+          (map
+           (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                         $lt (t/plus t0 (t/hours (inc h)))}}))
+           hour-range)))
+      cs))
+    :daily
+    (zipmap
+     cs
+     (map
+      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
+         (zipmap
+          day-range
+          (map
+           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                         $lt (t/plus t0 (t/days (inc d)))}}))
+           day-range)))
+      cs))
+    :time
+    (zipmap
+     cs
+     (map
+      #(->> (range (t/in-hours (t/interval t0 tmax)))
+            (map (fn [h]
+                   {(mod h 24)
+                    [(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                           $lt (t/plus t0 (t/hours (inc h)))}})]}))
+            (apply merge-with concat)
+            (map (fn [[k v]] [k (statistics v)]))
+            (into {}))
+      cs))
+    :unknown))
+
+
+
+
 (defn order
   "Computes order of the network at different granularity levels"
-  [n to tmax granularity]
+  [n t0 tmax granularity]
   (case granularity
     :hourly
     (zipmap
      n
      (map
-      (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-        (zipmap
-         hour-range
-         (map
-          #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                 $lt (t/plus t0 (t/hours (inc h)))}})
-          hour-range)))))
+      #(let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+         (statistics
+          (map
+           (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                         $lt (t/plus t0 (t/hours (inc h)))}}))
+           hour-range)))
+      n))
     :daily
-    (let [day-range (range (t/in-hours (t/interval t0 tmax)))]
-      (zipmap
-       n
-       (map
-        #(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                               $lt (t/plus t0 (t/hours (inc h)))}})
-        n)))
-    :time nil
+    (zipmap
+     n
+     (map
+      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
+         (zipmap
+          day-range
+          (map
+           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                         $lt (t/plus t0 (t/days (inc d)))}}))
+           day-range)))
+      n))
+    :time
+    (zipmap
+     n
+     (map
+      #(->> (range (t/in-hours (t/interval t0 tmax)))
+            (map (fn [h]
+                   {(mod h 24)
+                    [(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                           $lt (t/plus t0 (t/hours (inc h)))}})]}))
+            (apply merge-with concat)
+            (map (fn [[k v]] [k (statistics v)]))
+            (into {}))
+      n))
     :unknown))
 
 
@@ -316,12 +386,7 @@
           hour-range)))
 
 
-(defn statistics [coll]
-  (let [percentiles {:q0 0 :q50 0.5 :q100 1}
-        quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
-    (merge quantiles
-    {:mean (stats/mean coll)
-     :sd  (stats/sd coll)})))
+
 
 
 (defn format-to-table-view
@@ -347,5 +412,7 @@
   
   (ap)
 
+  (map vals (vals (order nodes t0 tmax :time)))
 
-  )
+  
+   )
