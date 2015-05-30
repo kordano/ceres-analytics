@@ -284,39 +284,6 @@
   )
 
 
-(defn news-daily-expansion
-  "Calculates daily expansion of a given time interval"
-  [news-users t0 day-range]
-  (map
-   (fn [d]
-     (map
-      (fn [{:keys [_id name]}]
-        [name
-         (mc/count @db "pubs"
-                   {:source _id
-                    :ts {$gt (t/plus t0 (t/days d))
-                         $lt (t/plus t0 (t/days (inc d)))}})
-         d])
-      news-users))
-   day-range))
-
-(defn news-hourly-expansion
-  "Calculates hourly expansion given a collection
-  a time interval and a starting time"
-  [t0 hour-range]
-  (apply merge-with concat
-         (map
-          (fn [h] (->> news-authors
-                       (map
-                        (fn [{:keys [_id name]}]
-                          {name
-                           [(mc/count @db "pubs" {:source _id
-                                                   :ts {$gt (t/plus t0 (t/hours h))
-                                                        $lt (t/plus t0 (t/hours (inc h)))}})]}) )
-                       (apply merge)))
-          hour-range)))
-
-
 (defn contact-latency
   "Compute contact latency on given temporal granularity level for cascades"
   [cs t0 tmax granularity]
