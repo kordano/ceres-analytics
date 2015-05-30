@@ -7,7 +7,6 @@
             [monger.joda-time]
             [monger.operators :refer :all]
             [monger.query :refer :all]
-            [ceres-analytics.measures :refer [news-authors]]
             [clj-time.coerce :as c]
             [clj-time.core :as t]))
 
@@ -88,9 +87,9 @@
        (into {})))
 
 
-(defn compounds [users time-slice]
+(defn compounds [users t0 tmax]
   (zipmap (pmap :name users) 
-          (pmap #(get-user-tree (:name %) time-slice) users)))
+          (pmap #(get-user-tree (:name %) {$gt t0 $lt tmax}) users)))
 
 (comment
   

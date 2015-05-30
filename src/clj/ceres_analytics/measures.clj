@@ -14,7 +14,6 @@
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
-(def news-authors (take 14 (map #(select-keys % [:name :_id]) (mc/find-maps @db "users" {:name {$in broadcasters}}))))
 
 (defn statistics [coll]
   (let [percentiles {:q0 0 :q50 0.5 :q100 1}
@@ -22,7 +21,7 @@
     (merge quantiles
            {:mean (stats/mean coll)
             :count (count coll)
-     :sd  (stats/sd coll)})))
+            :sd (stats/sd coll)})))
 
 
 (defn format-to-table-view
@@ -396,6 +395,68 @@
          (zipmap cs))
     :unknown))
 
+(defn inter-contact-times
+  ""
+  [cs t0 tmax granularity]
+  (case granularity
+    :hourly
+    (->> cs
+         (pmap
+          (fn [c]
+            (->> (mc/find-maps @db c {:ts {$gt t0
+                                           $ne nil
+                                           $lt tmax}})
+                 (pmap :ts)
+                 (remove nil?)
+                 (clojure.core/sort t/before?)
+                 (partition 2 1)
+                 (pmap (fn [[c1 c2]]
+                         (t/in-seconds (t/interval c1 c2))))
+                 statistics)))
+         (zipmap cs))
+    :daily
+    (->> cs
+         (map
+          (fn [c]
+            (let [day-range (range (t/in-days (t/interval t0 
+                                                          tmax)))]
+              (->> day-range
+                   (map
+                    (fn [d]
+                      (->> (mc/find-maps @db c {:ts {$gt (t/plus t0 (t/days d))
+                                                     $lt (t/plus t0 (t/days (inc d)))}})
+                           (pmap :ts)
+                           (remove nil?)
+                           (partition 2 1)
+                           (pmap (fn [[c1 c2]]
+                                   (t/in-seconds (t/interval c1 c2))))
+                           statistics)))
+                   (zipmap day-range)))))
+         (zipmap cs))
+    :time
+    (->> cs
+         (map
+          (fn [c]
+            (let [hour-range (range (t/in-hours (t/interval t0 
+                                                            tmax)))]
+              (->> hour-range
+                   (pmap
+                    (fn [h]
+                      (->> (mc/find-maps @db c {:ts {$gt (t/plus t0 (t/hours h))
+                                                     $lt (t/plus t0 (t/hours (inc h)))}})
+                           (pmap :ts)
+                           (remove nil?)
+                           (partition 2 1)
+                           (pmap (fn [[c1 c2]]
+                                   {(mod h 24)
+                                    [(t/in-seconds (t/interval c1 c2))]}))
+                           (apply merge-with concat))))
+                   (apply merge-with concat)
+                   (map (fn [[k v]] [k (statistics v)]))
+                   (into {})))))
+         (zipmap cs))
+    :unknown))
+
 
 
 (comment
@@ -410,7 +471,25 @@
   (def hour-range (range 0 (inc (* 24 30))))
  
   (contact-latency cascades t0 tmax :hourly)
-  
+
   (ap)
+
+
+  (def p1 (contact-latency ["pubs"] t0 (t/date-time 2015 4 25) :time))
+
+  (def p2 (contact-latency ["pubs"] (t/date-time 2015 4 25) (t/date-time 2015 5 5) :time))
+
+  
+  ;; Calculate pubs contact latency in 15 day steps
+  (merge p1
+         (into {} (map (fn [[k v]] [(+ k 10) v]) p2))
+         (into {} (map (fn [[k v]] [(+ k 20) v]) p3)))
+
+
+  (mc/count @db "pubs" {:ts {$gt (t/date-time 2015 4 5)
+                             $lt (t/date-time 2015 4 25)}})
+
+  (mc/count @db "pubs" {:ts {$gt (t/date-time 2015 4 25)
+                             $lt (t/date-time 2015 5 5)}})
   
   )
