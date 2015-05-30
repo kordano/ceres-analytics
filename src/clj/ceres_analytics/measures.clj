@@ -30,6 +30,8 @@
   [{:keys [count mean sd q0 q50 q100]}]
   [mean sd q50 q0 q100 count])
 
+(def table-columns ["Label" "Average" "Standard Deviation" "Medium" "Minimum" "Maximum" "Count"])
+
 
 (defn neighborhood
   "Compute neighborhood of given node id"
@@ -332,8 +334,10 @@
                  (pmap
                   (fn [{:keys [target ts]}]
                     (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                      (t/in-seconds
-                       (t/interval target-ts ts))
+                      (/
+                       (t/in-seconds
+                        (t/interval target-ts ts))
+                       3600)
                       nil)))
                  (remove nil?)
                  statistics)))
@@ -405,7 +409,6 @@
 
   (def hour-range (range 0 (inc (* 24 30))))
  
-
   (contact-latency cascades t0 tmax :hourly)
   
   (ap)
