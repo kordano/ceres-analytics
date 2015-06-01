@@ -57,7 +57,7 @@
   [authors t0 tmax granularity]
   (case granularity
     :hourly
-    (->> news-authors
+    (->> authors
          (pmap
           (fn [{:keys [_id name]}]
             (->> (t/interval t0 tmax)
@@ -69,22 +69,22 @@
                                           :ts {$gt (t/plus t0 (t/hours h))
                                                $lt (t/plus t0 (t/hours (inc h)))}})))
                  statistics)))
-         (zipmap (map :name news-authors)))
+         (zipmap (map :name authors)))
     :daily
-    (->> news-authors
+    (->> authors
          (map
           (fn [{:keys [_id name]}]
             (let [day-range (range (t/in-days (t/interval t0 tmax)))]
               (->> day-range
                    (map
                     (fn [d]
-                      (mc/count @db "pubs" {:source _id 
+                      (mc/count @db "pubs" {:source _id
                                             :ts {$gt (t/plus t0 (t/days d))
                                                  $lt (t/plus t0 (t/days (inc d)))}})))
                    (zipmap day-range)))))
-         (zipmap (map :name news-authors)))
+         (zipmap (map :name authors)))
     :time
-    (->> news-authors
+    (->> authors
          (pmap
           (fn [{:keys [_id name]}]
             (->> (t/interval t0 tmax)
@@ -99,18 +99,18 @@
                  (apply merge-with concat)
                  (map (fn [[k v]] [k (statistics v)]))
                  (into {}))))
-         (zipmap (map :name news-authors)))
+         (zipmap (map :name authors)))
     :unknown))
 
 
 (comment
 
   (def t0 (t/date-time 2015 4 5))
-  
+
   (def tmax (t/date-time 2015 5 5))
 
   (overall-size news-authors t0 tmax :daily)
-  
+
   (ap)
-  
+
   )
