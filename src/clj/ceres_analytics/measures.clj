@@ -14,6 +14,8 @@
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
+(defn mongo-time[t0 tmax]
+  {:ts {$gt t0 $lt tmax}})
 
 (defn statistics [coll]
   (let [percentiles {:q0 0 :q50 0.5 :q100 1}
@@ -43,10 +45,7 @@
                                     :target id}]}) contacts)))
 
 
-(defn degree
-  "Compute degree of given node id"
-  [id t0]
-  (->> (neighborhood id t0) vals (apply concat) count))
+
 
 
 (defn lifetime
@@ -415,37 +414,134 @@
 
 
 
+(defn degree
+  "Compute degree of given node id"
+  [t0 tmax granularity]
+  (case granularity
+    :overall
+    {"users"
+     (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
+          (map :source)
+          frequencies
+          vals
+          statistics)
+     "messages"
+     (->> (mapcat
+           (fn [c]
+             (mc/find-maps @db c
+                           (merge {:target {$ne nil}}
+                                  (mongo-time t0 tmax))))
+           cascades)
+          (map :target)
+          frequencies
+          vals
+          statistics)
+     "tags"
+     ;; topics degree
+     (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
+          (map :source)
+          frequencies
+          vals
+          statistics)}
+    :daily
+    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
+      {"users"
+       (->> day-range
+            (pmap
+             (comp
+              statistics
+              vals
+              frequencies
+              #(map :source %)
+              #(mc/find-maps @db "pubs"
+                             (mongo-time (t/plus t0 (t/days %))
+                                         (t/plus t0 (t/days (inc %)))))))
+            (zipmap day-range))
+       "messages"
+       (->> day-range
+            (pmap
+             (comp
+              statistics
+              vals
+              frequencies
+              #(map :target %)
+              #(mapcat
+                (fn [c]
+                  (mc/find-maps @db c
+                                (merge {:target {$ne nil}}
+                                       (mongo-time (t/plus t0 (t/days %))
+                                                   (t/plus t0 (t/days (inc %)))))))
+                cascades)))
+            (zipmap day-range))
+       "tags"
+       (->> day-range
+            (pmap
+             (comp
+              statistics
+              vals
+              frequencies
+              #(map :source %)
+              #(mc/find-maps @db "tagrefs"
+                             (mongo-time (t/plus t0 (t/days %))
+                                         (t/plus t0 (t/days (inc %)))))))
+            (zipmap day-range))})
+    :time
+    (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+    {"users"
+     (->> hour-range
+          (pmap
+           (fn [h] {(mod h 24)
+                    (map :source
+                         (mc/find-maps @db "pubs"
+                                       (mongo-time (t/plus t0 (t/hours h))
+                                                   (t/plus t0 (t/hours (inc h))))))}))
+          (apply merge-with concat)
+          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+          (into {})
+          )
+     "messages"
+     (->> hour-range
+            (pmap
+             (fn [h]
+               {(mod h 24)
+                (map :target
+                     (mapcat
+                      (fn [c]
+                        (mc/find-maps @db c
+                                      (merge {:target {$ne nil}}
+                                             (mongo-time (t/plus t0 (t/hours h))
+                                                         (t/plus t0 (t/hours (inc h)))))))
+                      cascades))}))
+          (apply merge-with concat)
+          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+          (into {})
+            )
+     "tags"
+     (->> hour-range
+          (pmap
+           (fn [h] {(mod h 24)
+                    (map :source
+                         (mc/find-maps @db "pubs"
+                                       (mongo-time (t/plus t0 (t/hours h))
+                                                   (t/plus t0 (t/hours (inc h))))))}))
+          (apply merge-with concat)
+          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+          (into {})
+          )})
+    :unrelated))
+
 (comment
 
   (def t0 (t/date-time 2015 4 5))
   
   (def tmax (t/date-time 2015 5 5))
 
+
+  (degree t0 tmax :time)
+
   
-  (def day-range (range 0 31))
-
-  (def hour-range (range 0 (inc (* 24 30))))
- 
-  (contact-latency cascades t0 tmax :hourly)
-
   (ap)
-
-
-  (def p1 (inter-contact-times ["pubs"] t0 (t/date-time 2015 4 25) :time))
-
-  (def p2 (inter-contact-times ["pubs"] (t/date-time 2015 4 25) (t/date-time 2015 5 5) :time))
-
+ 
   
-  ;; Calculate pubs contact latency in 15 day steps
-  (merge p1
-         (into {} (map (fn [[k v]] [(+ k 10) v]) p2))
-         (into {} (map (fn [[k v]] [(+ k 20) v]) p3)))
-
-
-  (mc/count @db "pubs" {:ts {$gt (t/date-time 2015 4 5)
-                             $lt (t/date-time 2015 4 25)}})
-
-  (mc/count @db "pubs" {:ts {$gt (t/date-time 2015 4 25)
-                             $lt (t/date-time 2015 5 5)}})
   
   )
