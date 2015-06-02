@@ -259,7 +259,7 @@
      cs)))
 
 
-(defn modularity
+#_(defn modularity
   "Computes the modularity of between two entites"
   [v0 v1 cs t0]
   (/ (* (degree v0 t0) (degree v1 t0))
@@ -521,7 +521,7 @@
           (pmap
            (fn [h] {(mod h 24)
                     (map :source
-                         (mc/find-maps @db "pubs"
+                         (mc/find-maps @db "tagrefs"
                                        (mongo-time (t/plus t0 (t/hours h))
                                                    (t/plus t0 (t/hours (inc h))))))}))
           (apply merge-with concat)
