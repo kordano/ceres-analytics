@@ -42,49 +42,32 @@
         user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts time-slice})))
         links (->> (mc/find-maps @db "sources" {:ts time-slice :target {$in pubs}})
-                   (pmap (comp #(find-links % time-slice)
-                              (fn [{:keys [source target ts]}]
-                                {:source target
-                                 :target (:_id user)
-                                 :ts ts
-                                 :group 2})
-                              #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
-                              #(mc/find-map-by-id @db "messages" (:target %)))))
+                   (pmap (fn [s]
+                           (let [original-message ((comp (fn [{:keys [source target ts]}]
+                                                           {:source target
+                                                            :target (:_id user)
+                                                            :root true
+                                                            :ts ts
+                                                            :group 2})
+                                                         #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
+                                                         #(mc/find-map-by-id @db "messages" (:target %))
+                                                         ) s)]
+                             [original-message (find-links original-message time-slice)]))))
         nodes (->> links
-                   (apply concat)
-                   (pmap (comp (fn [{:keys [_id text group ts]}]
-                                {:name _id :value text :group group :ts ts})
-                              (fn [{:keys [source group]}]
-                                (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
+                    (pmap second)
+                    (apply concat)
+                    (pmap (comp (fn [{:keys [_id text group ts]}]
+                                  {:name _id :value text :group group :ts ts})
+                                (fn [{:keys [source group]}]
+                                  (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
     {:nodes (mapv #(update-in % [:name] str) nodes)
      :links (->> links
                  (pmap
-                  #(remove (fn [l] (= (:name user-node) (:target l))) %)
+                  (fn [[k v]] [k (remove (fn [l] (= (:name user-node)  (:target l))) v)])
                   ;; only for frontend visualisation needed
                   #_(comp #(mapv (comp (fn [l] (update-in l [:source] str))
                                        (fn [l] (update-in l [:target] str))) %))) 
                  vec)}))
-
-
-(defn lifetimes
-  ""
-  [users compounds]
-  (->> users
-       (pmap
-        (fn [{:keys [name]}]
-          [name
-           (->> (get compounds name)
-                :links
-                (pmap (fn [ls] (let [contact-times (map (comp c/to-long :ts) ls)]
-                                 (if (empty? contact-times)
-                                   0
-                                   (->> (t/interval
-                                         (c/from-long (apply min contact-times))
-                                         (c/from-long (apply max contact-times)))
-                                        t/in-minutes
-                                        Math/floor)))))
-                stats/mean)]))
-       (into {})))
 
 
 (defn compounds [users t0 tmax]
@@ -101,6 +84,11 @@
        (take 20)
        (map (fn [[k v]] [(:text (mc/find-map-by-id @db "tags" k)) v])))
 
+  (def t0 (t/date-time 2015 4 5))
+  
+  (def tmax (t/date-time 2015 4 15))
+  
+  (get-user-tree "SZ" {$gt t0 $lt tmax})
   
   (ap)
 

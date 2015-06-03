@@ -219,21 +219,47 @@
 
 
 ;; --- total degree ---
-(defn daily-total-degree
-  "Compute total degree of contact set"
-  [cs t0 daily-range]
-  (zipmap
-   cs 
-   (map
-    (fn [c]
-      (zipmap
-       daily-range
-       (map
-        #(* 2
-            (mc/count @db c {:ts {$gt (t/plus t0 (t/days %))
-                                  $lt (t/plus t0 (t/days (inc %)))}}))
-        daily-range)))
-    cs)))
+
+(defn total-degree
+  "Computes total degree for given contact types between given start and end point and a given temporal granularity"
+  [cs t0 tmax granularity]
+  (case granularity
+    :hourly nil
+    :daily
+    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
+      (->> cs
+           (map
+            (fn [c]
+              (->> day-range
+                   (pmap
+                    #(* 2
+                        (mc/count @db c
+                                  (mongo-time (t/plus t0 (t/days %))
+                                              (t/plus t0 (t/days (inc %)))))))
+                   (zipmap day-range))))
+           (zipmap cs)))
+    :time
+    (->> cs
+         (map
+          (fn [c]
+            (->> (t/interval t0 tmax)
+                 t/in-hours
+                 range
+                 (map
+                  (fn [h]
+                    {(mod h 24)
+                     [(* 2
+                         (mc/count @db c
+                                   (mongo-time (t/plus t0 (t/hours h))
+                                               (t/plus t0 (t/hours (inc h))))))]}))
+                 (apply merge-with concat)
+                 (map (fn [[k v]] [k (statistics v)]))
+                 (into {})
+                 )))
+         (zipmap cs))
+    :unrelated))
+
+
 
 (defn hourly-total-degree
   "Compute total degree of contact set"
@@ -526,8 +552,7 @@
                                                    (t/plus t0 (t/hours (inc h))))))}))
           (apply merge-with concat)
           (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-          (into {})
-          )})
+          (into {}))})
     :unrelated))
 
 (comment
@@ -539,9 +564,9 @@
 
   (degree t0 tmax :time)
 
+  (total-degree contacts t0 tmax :time)
   
   (ap)
- 
-  
+
   
   )
