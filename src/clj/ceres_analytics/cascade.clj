@@ -13,13 +13,14 @@
 
 (def time-slice-0 {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 5 5)})
 
+
 (def db (atom
          (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
                ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
            (mg/get-db (mg/connect sa opts) "juno"))))
 
 
-(defn find-links [{:keys [source target group ts] :as link} time-slice]
+(defn find-links [{:keys [source target group ts] :as link} t0 tmax]
   (let [colls {"replies" 3 "retweets" 4 "shares" 5}]
     (conj (apply concat
                  (pmap (fn [coll]
@@ -28,20 +29,21 @@
                                 (fn [{:keys [source target ts]}]
                                   (find-links {:source source
                                                :target target
-                                               :ts (c/to-string ts)
+                                               :ts ts 
                                                :group (colls coll)}
-                                              time-slice))
+                                              t0 tmax))
                                 (mc/find-maps @db coll {:target source
-                                                        :ts time-slice}))))
+                                                        :ts {$gt t0 $lt tmax}}))))
                       (keys colls)))
           link)))
 
 
-(defn get-user-tree [username time-slice]
+(defn get-user-tree [username t0 tmax]
   (let [user (mc/find-one-as-map @db "users" {:name username})
         user-node {:name (:_id user) :value (:name user) :group 1}
-        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :ts time-slice})))
-        links (->> (mc/find-maps @db "sources" {:ts time-slice :target {$in pubs}})
+        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
+                                                              :ts {$gt t0 $lt tmax}})))
+        links (->> (mc/find-maps @db "sources" {:ts {$gt t0 $lt tmax} :target {$in pubs}})
                    (pmap (fn [s]
                            (let [original-message ((comp (fn [{:keys [source target ts]}]
                                                            {:source target
@@ -52,7 +54,7 @@
                                                          #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
                                                          #(mc/find-map-by-id @db "messages" (:target %))
                                                          ) s)]
-                             [original-message (find-links original-message time-slice)]))))
+                             [original-message (find-links original-message t0 tmax)]))))
         nodes (->> links
                     (pmap second)
                     (apply concat)
@@ -88,7 +90,7 @@
   
   (def tmax (t/date-time 2015 4 15))
   
-  (get-user-tree "SZ" {$gt t0 $lt tmax})
+  (get-user-tree "SZ" t0 tmax)
   
   (ap)
 

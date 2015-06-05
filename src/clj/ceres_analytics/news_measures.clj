@@ -18,38 +18,6 @@
        (take 14)))
 
 
-(defn news-daily-expansion
-  "Calculates daily expansion of a given time interval"
-  [news-users t0 day-range]
-  (map
-   (fn [d]
-     (map
-      (fn [{:keys [_id name]}]
-        [name
-         (mc/count @db "pubs"
-                   {:source _id
-                    :ts {$gt (t/plus t0 (t/days d))
-                         $lt (t/plus t0 (t/days (inc d)))}})
-         d])
-      news-users))
-   day-range))
-
-(defn news-hourly-expansion
-  "Calculates hourly expansion given a collection
-  a time interval and a starting time"
-  [authors t0 tmax]
-  (->> authors
-       (map
-        (fn [{:keys [_id name]}]
-          (->> (t/in-hours (t/interval t0 tmax))
-               range
-               (map
-                (fn [h]
-                  (mc/count @db "pubs" {:source _id
-                                        :ts {$gt (t/plus t0 (t/hours h))
-                                             $lt (t/plus t0 (t/hours (inc h)))}})
-                  (apply merge)))
-               (apply merge-with concat))))))
 
 
 (defn overall-size
@@ -155,18 +123,29 @@
 
 (defn inter-contact-times
   "Compute inter-contact times in given compound set"
-  [{:keys [links nodes] :as compound}]
-  (->> links
-       (pmap
-        (fn [[l ls]]
-          (let [contact-times (map :ts ls)]
-            (if (empty? contact-times)
-              0
-              (->> contact-times
-                   (sort-by )
-                   )
-              ))))
-       statistics)
+  [{:keys [links nodes] :as compound} t0 tmax granularity]
+  (case granularity
+    :overall (let [icts (->> links
+                             (mapv
+                              (fn [[l ls]]
+                                (let [contact-times (map :ts ls)]
+                                  (if (< (count contact-times) 2)
+                                    [0.0]
+                                    (->> contact-times
+                                         (remove nil?)
+                                         (clojure.core/sort t/before?)
+                                         (partition 2 1)
+                                         (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))))))))]
+               {:stats (statistics (map stats/mean icts))
+                :distribution (apply concat icts)})
+    :daily nil
+    :time nil
+    :unrelated))
+
+(defn source-degree
+  ""
+  [broadcaster t0 tmax granularity]
+  
   )
 
 
@@ -175,13 +154,14 @@
   (def t0 (t/date-time 2015 4 5))
 
   (def tmax (t/date-time 2015 5 5))
+  
 
   (ap)
 
-  (for [na news-authors]
-    (->> (get (compounds (filter #{na} news-authors) t0 tmax) (:name na))
-         (temporal-radius)
+  (for [na (take 2 news-authors)]
+(->> (inter-contact-times (get (compounds (filter #{na} news-authors) t0 tmax) (:name na)) :overall)
          aprint
          time))
+
   
   )
