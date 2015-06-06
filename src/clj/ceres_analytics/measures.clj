@@ -138,7 +138,7 @@
   "Computes the density of the network at time t_0"
   [n c t0 tmax granularity]
   (case granularity
-    :hourly 
+    :hourly
     (->> (range (t/in-hours (t/interval t0 tmax)))
          (map
           (fn [h]
@@ -254,7 +254,7 @@
                       nil)))
                  (remove nil?)
                  statistics)))
-         (zipmap cs))  
+         (zipmap cs))
     :distribution
     (->> cs
          (map
@@ -266,18 +266,18 @@
                        (t/in-seconds (t/interval target-ts ts))
                       nil)))
                  (remove nil?))))
-         (zipmap cs))  
+         (zipmap cs))
     :evolution
     (->> cs
          (map
           (fn [c]
             (->> (t/interval t0 tmax)
-                 t/in-hours
+                 t/in-days
                  range
                  (mapv
                   (fn [h]
                     (->> (mc/find-maps @db c {:ts  {$gt t0
-                                                    $lt (t/plus t0 (t/hours (inc h)))}
+                                                    $lt (t/plus t0 (t/days (inc h)))}
                                               :source {$ne nil}
                                               :target {$ne nil}})
                          (pmap
@@ -316,17 +316,17 @@
                    (remove nil?)
                    (partition 2 1)
                    (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2)))))
-             cs))   
+             cs))
     :evolution
     (->> cs
          (map
           (fn [c]
-            (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+            (let [hour-range (range (t/in-days (t/interval t0 tmax)))]
               (->> hour-range
                    (pmap
                     (fn [h]
                       (->> (mc/find-maps @db c {:ts {$gt t0
-                                                     $lt (t/plus t0 (t/hours (inc h)))}})
+                                                     $lt (t/plus t0 (t/days (inc h)))}})
                            (pmap :ts)
                            (remove nil?)
                            (partition 2 1)
@@ -425,21 +425,21 @@
 (comment
 
   (def t0 (t/date-time 2015 4 5))
-  
+
   (def tmax (t/date-time 2015 4 6))
 
-  (->> (mc/find-maps @db "shares" {:ts {$gt t0 
+  (->> (mc/find-maps @db "shares" {:ts {$gt t0
                                  $lt tmax}})
        (pmap :ts)
        (remove nil?)
        (partition 2 1)
        (pmap (fn [[c1 c2]]
                (t/in-seconds (t/interval c1 c2)))))
-  
+
   (ap)
 
   (time (inter-contact-times cascades t0 tmax :evolution))
 
   (time (degree t0 tmax :evolution))
-  
+
   )
