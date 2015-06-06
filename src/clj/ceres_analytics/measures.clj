@@ -7,7 +7,7 @@
             [clj-time.core :as t]
             [clj-time.coerce :as c]
             [monger.operators :refer :all]
-            [aprint.core :refer [ap]]
+            [aprint.core :refer [ap aprint]]
             [monger.query :refer :all]))
 
 (def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
@@ -45,24 +45,6 @@
                                     :target id}]}) contacts)))
 
 
-
-
-
-(defn lifetime
-  "Computes lifetime of contact set"
-  [cs]
-  (zipmap
-   (keys cs)
-   (map
-    #(let [sorted-cs (sort-by :ts %)]
-       (-> (t/interval (-> % first :ts) (-> % last :ts))
-           t/in-seconds
-           (/ 3600)
-           float))
-    (vals cs))))
-
-
-
 (defn nw-size
   "Computes size of network on different temporal granularity levels"
   [cs t0 tmax granularity]
@@ -72,23 +54,24 @@
      cs
      (map
       #(let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-         (statistics
-          (map
-           (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                         $lt (t/plus t0 (t/hours (inc h)))}}))
-           hour-range)))
+         (statistics (map
+                      (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
+                                                    $lt (t/plus t0 (t/hours (inc h)))}}))
+                      hour-range)))
       cs))
     :daily
     (zipmap
      cs
      (map
-      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
+      #(let [day-range (range (t/in-days (t/interval t0 tmax)))
+             day-values (map
+                         (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                                       $lt (t/plus t0 (t/days (inc d)))}}))
+                         day-range)
+             day-sum (reduce + day-values)]
          (zipmap
           day-range
-          (map
-           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
-                                         $lt (t/plus t0 (t/days (inc d)))}}))
-           day-range)))
+          (map (fn [v] (* 100 (/ v day-sum))) day-values)))
       cs))
     :time
     (zipmap
@@ -302,7 +285,7 @@
   "Compute contact latency on given temporal granularity level for cascades"
   [cs t0 tmax granularity]
   (case granularity
-    :hourly
+    :statistics
     (->> cs
          (map
           (fn [c]
@@ -322,30 +305,17 @@
                  (remove nil?)
                  statistics)))
          (zipmap cs))  
-    :daily
+    :distribution
     (->> cs
          (map
           (fn [c]
-            (let [day-range (->> (t/interval t0 tmax)
-                                 t/in-days
-                                 range)]
-              (->> day-range
-                   (mapv
-                    (fn [d]
-                      (->> (mc/find-maps @db c {:ts  {$gt (t/plus t0 (t/days d))
-                                                      $lt (t/plus t0 (t/days (inc d)))}
-                                                :source {$ne nil}
-                                                :target {$ne nil}})
-                           (pmap
-                            (fn [{:keys [target ts]}]
-                              (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                                (/ (t/in-seconds
-                                    (t/interval target-ts ts))
-                                   3600)
-                                nil)))
-                           (remove nil?)
-                           statistics)))
-                   (zipmap day-range)))))
+            (->> (mc/find-maps @db c {:ts {$gt t0 $lt tmax} :target {$ne nil}})
+                 (pmap
+                  (fn [{:keys [target ts]}]
+                    (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+                       (t/in-seconds (t/interval target-ts ts))
+                      nil)))
+                 (remove nil?))))
          (zipmap cs))  
     :time
     (->> cs
@@ -395,25 +365,17 @@
                          (t/in-seconds (t/interval c1 c2))))
                  statistics)))
          (zipmap cs))
-    :daily
-    (->> cs
-         (map
-          (fn [c]
-            (let [day-range (range (t/in-days (t/interval t0 
-                                                          tmax)))]
-              (->> day-range
-                   (map
-                    (fn [d]
-                      (->> (mc/find-maps @db c {:ts {$gt (t/plus t0 (t/days d))
-                                                     $lt (t/plus t0 (t/days (inc d)))}})
-                           (pmap :ts)
-                           (remove nil?)
-                           (partition 2 1)
-                           (pmap (fn [[c1 c2]]
-                                   (t/in-seconds (t/interval c1 c2))))
-                           statistics)))
-                   (zipmap day-range)))))
-         (zipmap cs))
+    :distribution
+    (zipmap
+     cs
+     (map  #(->> (mc/find-maps @db % {:ts {$gt t0 
+                                           $lt tmax}})
+                 (pmap :ts)
+                 (remove nil?)
+                 (partition 2 1)
+                 (pmap (fn [[c1 c2]]
+                         (t/in-seconds (t/interval c1 c2)))))
+           cs))   
     :time
     (->> cs
          (map
@@ -559,14 +521,16 @@
 
   (def t0 (t/date-time 2015 4 5))
   
-  (def tmax (t/date-time 2015 5 5))
+  (def tmax (t/date-time 2015 4 15))
 
-
-  (degree t0 tmax :time)
-
-  (total-degree contacts t0 tmax :time)
+  (->> (mc/find-maps @db "shares" {:ts {$gt t0 
+                                 $lt tmax}})
+       (pmap :ts)
+       (remove nil?)
+       (partition 2 1)
+       (pmap (fn [[c1 c2]]
+               (t/in-seconds (t/interval c1 c2)))))
   
   (ap)
-
   
   )
