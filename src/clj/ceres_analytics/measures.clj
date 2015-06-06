@@ -429,49 +429,41 @@
           frequencies
           vals
           statistics)}
-    :distri
-    {"users"
-     (pmap
-      (comp
-       vals
-       frequencies
-       #(map :source %)
-       #(mc/find-maps @db "pubs" (mongo-time t0 tmax))))
-     "messages"
-     (pmap
-      (comp
-       vals
-       frequencies
-       #(map :target %)
-       #(mapcat
-         (fn [c]
-           (mc/find-maps @db c
-                         (merge {:target {$ne nil}}
-                                (mongo-time t0 tmax))))
-         cascades)))
-     "tags"
-     (pmap
-      (comp
-       vals
-       frequencies
-       #(map :source %)
-       #(mc/find-maps @db "tagrefs" (mongo-time t0 tmax))))}
+    :distribution
+    {"users" (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
+                  (map :source)
+                  frequencies
+                  vals
+                  )
+     "messages" (->> (mapcat
+                      (fn [c]
+                        (mc/find-maps @db c
+                                      (merge {:target {$ne nil}}
+                                             (mongo-time t0 tmax))))
+                      cascades)
+                     (map :target)
+                     frequencies
+                     vals)
+     "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
+                 (map :source)
+                 frequencies
+                 vals)}
     :time
     (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-    {"users"
-     (->> hour-range
-          (pmap
-           (fn [h] {(mod h 24)
-                    (map :source
-                         (mc/find-maps @db "pubs"
-                                       (mongo-time (t/plus t0 (t/hours h))
-                                                   (t/plus t0 (t/hours (inc h))))))}))
-          (apply merge-with concat)
-          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-          (into {})
-          )
-     "messages"
-     (->> hour-range
+      {"users"
+       (->> hour-range
+            (pmap
+             (fn [h] {(mod h 24)
+                      (map :source
+                           (mc/find-maps @db "pubs"
+                                         (mongo-time (t/plus t0 (t/hours h))
+                                                     (t/plus t0 (t/hours (inc h))))))}))
+            (apply merge-with concat)
+            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+            (into {})
+            )
+       "messages"
+       (->> hour-range
             (pmap
              (fn [h]
                {(mod h 24)
@@ -483,21 +475,21 @@
                                              (mongo-time (t/plus t0 (t/hours h))
                                                          (t/plus t0 (t/hours (inc h)))))))
                       cascades))}))
-          (apply merge-with concat)
-          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-          (into {})
+            (apply merge-with concat)
+            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+            (into {})
             )
-     "tags"
-     (->> hour-range
-          (pmap
-           (fn [h] {(mod h 24)
-                    (map :source
-                         (mc/find-maps @db "tagrefs"
-                                       (mongo-time (t/plus t0 (t/hours h))
-                                                   (t/plus t0 (t/hours (inc h))))))}))
-          (apply merge-with concat)
-          (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-          (into {}))})
+       "tags"
+       (->> hour-range
+            (pmap
+             (fn [h] {(mod h 24)
+                      (map :source
+                           (mc/find-maps @db "tagrefs"
+                                         (mongo-time (t/plus t0 (t/hours h))
+                                                     (t/plus t0 (t/hours (inc h))))))}))
+            (apply merge-with concat)
+            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
+            (into {}))})
     :unrelated))
 
 (comment
