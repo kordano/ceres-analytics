@@ -297,10 +297,8 @@
                  (pmap
                   (fn [{:keys [target ts]}]
                     (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                      (/
-                       (t/in-seconds
-                        (t/interval target-ts ts))
-                       3600)
+                      (t/in-seconds
+                       (t/interval target-ts ts))
                       nil)))
                  (remove nil?)
                  statistics)))
@@ -350,7 +348,7 @@
   "Compute intercontact times of given cascades between given t0 and tmax on given granularity level "
   [cs t0 tmax granularity]
   (case granularity
-    :hourly
+    :statistics
     (->> cs
          (pmap
           (fn [c]
@@ -406,7 +404,7 @@
   "Compute degree of given node id"
   [t0 tmax granularity]
   (case granularity
-    :overall
+    :statistics
     {"users"
      (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
           (map :source)
@@ -431,48 +429,33 @@
           frequencies
           vals
           statistics)}
-    :daily
-    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
-      {"users"
-       (->> day-range
-            (pmap
-             (comp
-              statistics
-              vals
-              frequencies
-              #(map :source %)
-              #(mc/find-maps @db "pubs"
-                             (mongo-time (t/plus t0 (t/days %))
-                                         (t/plus t0 (t/days (inc %)))))))
-            (zipmap day-range))
-       "messages"
-       (->> day-range
-            (pmap
-             (comp
-              statistics
-              vals
-              frequencies
-              #(map :target %)
-              #(mapcat
-                (fn [c]
-                  (mc/find-maps @db c
-                                (merge {:target {$ne nil}}
-                                       (mongo-time (t/plus t0 (t/days %))
-                                                   (t/plus t0 (t/days (inc %)))))))
-                cascades)))
-            (zipmap day-range))
-       "tags"
-       (->> day-range
-            (pmap
-             (comp
-              statistics
-              vals
-              frequencies
-              #(map :source %)
-              #(mc/find-maps @db "tagrefs"
-                             (mongo-time (t/plus t0 (t/days %))
-                                         (t/plus t0 (t/days (inc %)))))))
-            (zipmap day-range))})
+    :distri
+    {"users"
+     (pmap
+      (comp
+       vals
+       frequencies
+       #(map :source %)
+       #(mc/find-maps @db "pubs" (mongo-time t0 tmax))))
+     "messages"
+     (pmap
+      (comp
+       vals
+       frequencies
+       #(map :target %)
+       #(mapcat
+         (fn [c]
+           (mc/find-maps @db c
+                         (merge {:target {$ne nil}}
+                                (mongo-time t0 tmax))))
+         cascades)))
+     "tags"
+     (pmap
+      (comp
+       vals
+       frequencies
+       #(map :source %)
+       #(mc/find-maps @db "tagrefs" (mongo-time t0 tmax))))}
     :time
     (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
     {"users"
