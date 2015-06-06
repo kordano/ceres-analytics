@@ -315,7 +315,7 @@
                       nil)))
                  (remove nil?))))
          (zipmap cs))  
-    :time
+    :evolution
     (->> cs
          (map
           (fn [c]
@@ -324,23 +324,17 @@
                  range
                  (mapv
                   (fn [h]
-                    (->> (mc/find-maps @db c {:ts  {$gt (t/plus t0 (t/hours h))
+                    (->> (mc/find-maps @db c {:ts  {$gt t0
                                                     $lt (t/plus t0 (t/hours (inc h)))}
                                               :source {$ne nil}
                                               :target {$ne nil}})
                          (pmap
                           (fn [{:keys [target ts]}]
                             (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                              {(mod h 24)
-                               [(/ (t/in-seconds
-                                    (t/interval target-ts ts))
-                                   3600)]}
+                              (/ (t/in-seconds (t/interval target-ts ts)) 3600)
                               nil)))
                          (remove nil?)
-                         (apply merge-with concat))))
-                 (apply merge-with concat)
-                 (map (fn [[k v]] [k (statistics v)]))
-                 (into {}))))
+                         statistics))))))
          (zipmap cs))
     :unknown))
 
@@ -507,5 +501,7 @@
                (t/in-seconds (t/interval c1 c2)))))
   
   (ap)
+
+  (contact-latency cascades t0 tmax :evolution)
   
   )
