@@ -192,17 +192,7 @@
 
 
 
-(defn subset-size
-  "Computes size of given contact set"
-  [cs]
-  (zipmap
-   (keys cs)
-   (map count (vals cs))))
-
-
-
 ;; --- total degree ---
-
 (defn total-degree
   "Computes total degree for given contact types between given start and end point and a given temporal granularity"
   [cs t0 tmax granularity]
@@ -241,44 +231,6 @@
                  )))
          (zipmap cs))
     :unrelated))
-
-
-
-(defn hourly-total-degree
-  "Compute total degree of contact set"
-  [cs t0 hourly-range]
-  (map
-   #(* 2 (mc/count @db cs {:ts {$gt (t/plus t0 (t/hours %))
-                                $lt (t/plus t0 (t/hours (inc %)))}}))
-   hourly-range))
-
-
-(defn tod-total-degree
-  "Compute total degree for each day of time of day"
-  [cs t0 tmax]
-  (zipmap
-    cs
-    (map
-     (comp
-      #(into {} %)
-      #(map (fn [[k v]] [k (* v 2)]) %)
-      frequencies
-      (fn [cs] (map (comp t/hour :ts) cs))
-      #(mc/find-maps @db % {:ts {$gt t0 $lt tmax}}))
-     cs)))
-
-
-#_(defn modularity
-  "Computes the modularity of between two entites"
-  [v0 v1 cs t0]
-  (/ (* (degree v0 t0) (degree v1 t0))
-     (* 2 (count cs))))
-
-
-(defn topological-eccentricity
-  "Compute topological eccentriciy of given entity"
-  [v0 cs t0]
-  )
 
 
 (defn contact-latency
@@ -353,42 +305,33 @@
                  (remove nil?)
                  (clojure.core/sort t/before?)
                  (partition 2 1)
-                 (pmap (fn [[c1 c2]]
-                         (t/in-seconds (t/interval c1 c2))))
+                 (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))
                  statistics)))
          (zipmap cs))
     :distribution
-    (zipmap
-     cs
-     (map  #(->> (mc/find-maps @db % {:ts {$gt t0 
-                                           $lt tmax}})
-                 (pmap :ts)
-                 (remove nil?)
-                 (partition 2 1)
-                 (pmap (fn [[c1 c2]]
-                         (t/in-seconds (t/interval c1 c2)))))
-           cs))   
-    :time
+    (zipmap cs
+            (map
+             #(->> (mc/find-maps @db % {:ts {$gt t0 $lt tmax}})
+                   (pmap :ts)
+                   (remove nil?)
+                   (partition 2 1)
+                   (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2)))))
+             cs))   
+    :evolution
     (->> cs
          (map
           (fn [c]
-            (let [hour-range (range (t/in-hours (t/interval t0 
-                                                            tmax)))]
+            (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
               (->> hour-range
                    (pmap
                     (fn [h]
-                      (->> (mc/find-maps @db c {:ts {$gt (t/plus t0 (t/hours h))
+                      (->> (mc/find-maps @db c {:ts {$gt t0
                                                      $lt (t/plus t0 (t/hours (inc h)))}})
                            (pmap :ts)
                            (remove nil?)
                            (partition 2 1)
-                           (pmap (fn [[c1 c2]]
-                                   {(mod h 24)
-                                    [(t/in-seconds (t/interval c1 c2))]}))
-                           (apply merge-with concat))))
-                   (apply merge-with concat)
-                   (map (fn [[k v]] [k (statistics v)]))
-                   (into {})))))
+                           (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))
+                           statistics)))))))
          (zipmap cs))
     :unknown))
 
@@ -427,8 +370,7 @@
     {"users" (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
                   (map :source)
                   frequencies
-                  vals
-                  )
+                  vals)
      "messages" (->> (mapcat
                       (fn [c]
                         (mc/find-maps @db c
@@ -442,55 +384,49 @@
                  (map :source)
                  frequencies
                  vals)}
-    :time
+    :evolution
     (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
       {"users"
        (->> hour-range
             (pmap
-             (fn [h] {(mod h 24)
-                      (map :source
-                           (mc/find-maps @db "pubs"
-                                         (mongo-time (t/plus t0 (t/hours h))
-                                                     (t/plus t0 (t/hours (inc h))))))}))
-            (apply merge-with concat)
-            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-            (into {})
-            )
+             (fn [h]
+               (->> (mongo-time t0 (t/plus t0 (t/hours (inc h))))
+                    (mc/find-maps @db "pubs")
+                    (map :source)
+                    frequencies
+                    vals
+                    statistics))))
        "messages"
        (->> hour-range
             (pmap
              (fn [h]
-               {(mod h 24)
-                (map :target
-                     (mapcat
-                      (fn [c]
-                        (mc/find-maps @db c
-                                      (merge {:target {$ne nil}}
-                                             (mongo-time (t/plus t0 (t/hours h))
-                                                         (t/plus t0 (t/hours (inc h)))))))
-                      cascades))}))
-            (apply merge-with concat)
-            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-            (into {})
-            )
+               (->> cascades
+                    (mapcat
+                     (fn [c]
+                       (mc/find-maps @db c (merge {:target {$ne nil}}
+                                                  (mongo-time t0
+                                                              (t/plus t0 (t/hours (inc h))))))))
+                    (map :target)
+                    frequencies
+                    vals
+                    statistics))))
        "tags"
        (->> hour-range
             (pmap
-             (fn [h] {(mod h 24)
-                      (map :source
-                           (mc/find-maps @db "tagrefs"
-                                         (mongo-time (t/plus t0 (t/hours h))
-                                                     (t/plus t0 (t/hours (inc h))))))}))
-            (apply merge-with concat)
-            (pmap (fn [[k v]] [k (-> v frequencies vals statistics)]))
-            (into {}))})
+             (fn [h]
+               (->> (mongo-time t0 (t/plus t0 (t/hours (inc h))))
+                    (mc/find-maps @db "tagrefs" )
+                    (map :source)
+                    frequencies
+                    vals
+                    statistics))))})
     :unrelated))
 
 (comment
 
   (def t0 (t/date-time 2015 4 5))
   
-  (def tmax (t/date-time 2015 4 15))
+  (def tmax (t/date-time 2015 4 6))
 
   (->> (mc/find-maps @db "shares" {:ts {$gt t0 
                                  $lt tmax}})
@@ -502,6 +438,8 @@
   
   (ap)
 
-  (contact-latency cascades t0 tmax :evolution)
+  (time (inter-contact-times cascades t0 tmax :evolution))
+
+  (time (degree t0 tmax :evolution))
   
   )
