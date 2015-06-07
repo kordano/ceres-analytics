@@ -275,9 +275,9 @@
                  t/in-days
                  range
                  (mapv
-                  (fn [h]
+                  (fn [d]
                     (->> (mc/find-maps @db c {:ts  {$gt t0
-                                                    $lt (t/plus t0 (t/days (inc h)))}
+                                                    $lt (t/plus t0 (t/days (inc d)))}
                                               :source {$ne nil}
                                               :target {$ne nil}})
                          (pmap
@@ -321,12 +321,12 @@
     (->> cs
          (map
           (fn [c]
-            (let [hour-range (range (t/in-days (t/interval t0 tmax)))]
-              (->> hour-range
+            (let [day-range (range (t/in-days (t/interval t0 tmax)))]
+              (->> day-range
                    (pmap
-                    (fn [h]
+                    (fn [d]
                       (->> (mc/find-maps @db c {:ts {$gt t0
-                                                     $lt (t/plus t0 (t/days (inc h)))}})
+                                                     $lt (t/plus t0 (t/days (inc d)))}})
                            (pmap :ts)
                            (remove nil?)
                            (partition 2 1)
@@ -385,36 +385,36 @@
                  frequencies
                  vals)}
     :evolution
-    (let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
+    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
       {"users"
-       (->> hour-range
+       (->> day-range
             (pmap
-             (fn [h]
-               (->> (mongo-time t0 (t/plus t0 (t/hours (inc h))))
+             (fn [d]
+               (->> (mongo-time t0 (t/plus t0 (t/hours (inc d))))
                     (mc/find-maps @db "pubs")
                     (map :source)
                     frequencies
                     vals
                     statistics))))
        "messages"
-       (->> hour-range
+       (->> day-range
             (pmap
-             (fn [h]
+             (fn [d]
                (->> cascades
                     (mapcat
                      (fn [c]
                        (mc/find-maps @db c (merge {:target {$ne nil}}
                                                   (mongo-time t0
-                                                              (t/plus t0 (t/hours (inc h))))))))
+                                                              (t/plus t0 (t/days (inc d))))))))
                     (map :target)
                     frequencies
                     vals
                     statistics))))
        "tags"
-       (->> hour-range
+       (->> day-range
             (pmap
-             (fn [h]
-               (->> (mongo-time t0 (t/plus t0 (t/hours (inc h))))
+             (fn [d]
+               (->> (mongo-time t0 (t/plus t0 (t/days (inc d))))
                     (mc/find-maps @db "tagrefs" )
                     (map :source)
                     frequencies
@@ -426,7 +426,7 @@
 
   (def t0 (t/date-time 2015 4 5))
 
-  (def tmax (t/date-time 2015 4 6))
+  (def tmax (t/date-time 2015 4 15))
 
   (->> (mc/find-maps @db "shares" {:ts {$gt t0
                                  $lt tmax}})
@@ -438,7 +438,12 @@
 
   (ap)
 
-  (time (inter-contact-times cascades t0 tmax :evolution))
+  (->> (inter-contact-times cascades t0 tmax :evolution)
+       vals
+       first
+       (map :count)
+       statistics
+       time)
 
   (time (degree t0 tmax :evolution))
 
