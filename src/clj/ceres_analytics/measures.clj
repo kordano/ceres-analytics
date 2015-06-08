@@ -31,7 +31,7 @@
   [{:keys [count mean sd q0 q50 q100]}]
   [mean sd q50 q0 q100 count])
 
-(def table-columns ["Label" "Average" "Standard Deviation" "Medium" "Minimum" "Maximum" "Count"])
+(def table-columns ["Label" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
 
 
 (defn neighborhood
@@ -49,6 +49,7 @@
   "Computes size of network on different temporal granularity levels"
   [cs t0 tmax granularity]
   (case granularity
+    :overall (zipmap cs (map #(mc/count @db % {:ts {$gt t0 $lt tmax}}) cs))
     :hourly
     (zipmap
      cs
@@ -63,15 +64,13 @@
     (zipmap
      cs
      (map
-      #(let [day-range (range (t/in-days (t/interval t0 tmax)))
-             day-values (map
-                         (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
-                                                       $lt (t/plus t0 (t/days (inc d)))}}))
-                         day-range)
-             day-sum (reduce + day-values)]
+      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
          (zipmap
           day-range
-          (map (fn [v] (* 100 (/ v day-sum))) day-values)))
+          (map
+           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
+                                         $lt (t/plus t0 (t/days (inc d)))}}))
+           day-range)))
       cs))
     :time
     (zipmap
@@ -94,6 +93,7 @@
   "Computes order of the network at different granularity levels"
   [n t0 tmax granularity]
   (case granularity
+    :overall (zipmap n (map #(mc/count @db % {:ts {$gt t0 $lt tmax}}) n))
     :hourly
     (zipmap
      n
@@ -138,6 +138,17 @@
   "Computes the density of the network at time t_0"
   [n c t0 tmax granularity]
   (case granularity
+    :overall
+    (let [node-count (reduce
+                      +
+                      (pmap
+                       #(mc/count @db % {:ts {$gt t0
+                                              $lt tmax}}) n))]
+      ((comp float /)
+       (reduce +
+               (pmap #(mc/count @db % {:ts {$gt t0
+                                            $lt tmax}}) c))
+       (* node-count (dec node-count))))
     :hourly
     (->> (range (t/in-hours (t/interval t0 tmax)))
          (map
@@ -197,7 +208,24 @@
   "Computes total degree for given contact types between given start and end point and a given temporal granularity"
   [cs t0 tmax granularity]
   (case granularity
-    :hourly nil
+    :overall
+    (->> cs
+         (map (fn [c] (* 2 (mc/count @db c (mongo-time t0 tmax)))))
+         (zipmap cs))
+    :hourly (->> cs
+                 (map
+                  (fn [c]
+                    (->> (t/interval t0 tmax)
+                         t/in-hours
+                         range
+                         (map
+                          (fn [h]
+                            (* 2
+                               (mc/count @db c
+                                         (mongo-time (t/plus t0 (t/hours h))
+                                                     (t/plus t0 (t/hours (inc h))))))))
+                         statistics)))
+                 (zipmap cs))
     :daily
     (let [day-range (range (t/in-days (t/interval t0 tmax)))]
       (->> cs
