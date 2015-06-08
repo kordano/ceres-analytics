@@ -290,136 +290,124 @@
          (zipmap cs))
     :unknown))
 
-(defn inter-contact-times
+(defn inter-contact-time
   "Compute intercontact times of given cascades between given t0 and tmax on given granularity level "
-  [cs t0 tmax granularity]
+  [label t0 tmax granularity]
   (case granularity
     :statistics
-    (->> cs
+    (->> (mc/find-maps @db label {:ts {$gt t0
+                                       $ne nil
+                                       $lt tmax}})
+         (pmap :ts)
+         (remove nil?)
+         (clojure.core/sort t/before?)
+         (partition 2 1)
+         (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))
+         statistics)
+    :distribution
+    (->> (mc/find-maps @db label {:ts {$gt t0 $lt tmax}})
+         (pmap :ts)
+         (remove nil?)
+         (partition 2 1)
+         (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2)))))
+    
+    :evolution
+    (->> (range (t/in-days (t/interval t0 tmax)))
          (pmap
-          (fn [c]
-            (->> (mc/find-maps @db c {:ts {$gt t0
-                                           $ne nil
-                                           $lt tmax}})
+          (fn [d]
+            (->> (mc/find-maps @db label {:ts {$gt t0
+                                           $lt (t/plus t0 (t/days (inc d)))}})
                  (pmap :ts)
                  (remove nil?)
-                 (clojure.core/sort t/before?)
                  (partition 2 1)
                  (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))
-                 statistics)))
-         (zipmap cs))
-    :distribution
-    (zipmap cs
-            (map
-             #(->> (mc/find-maps @db % {:ts {$gt t0 $lt tmax}})
-                   (pmap :ts)
-                   (remove nil?)
-                   (partition 2 1)
-                   (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2)))))
-             cs))
-    :evolution
-    (->> cs
-         (map
-          (fn [c]
-            (let [day-range (range (t/in-days (t/interval t0 tmax)))]
-              (->> day-range
-                   (pmap
-                    (fn [d]
-                      (->> (mc/find-maps @db c {:ts {$gt t0
-                                                     $lt (t/plus t0 (t/days (inc d)))}})
-                           (pmap :ts)
-                           (remove nil?)
-                           (partition 2 1)
-                           (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))
-                           statistics)))))))
-         (zipmap cs))
+                 statistics))))
     :unknown))
 
 
 
 (defn degree
   "Compute degree of given node id"
-  [t0 tmax granularity]
+  [t0 tmax granularity label]
   (case granularity
     :statistics
-    {"users"
-     (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
-          (map :source)
-          frequencies
-          vals
-          statistics)
-     "messages"
-     (->> (mapcat
-           (fn [c]
-             (mc/find-maps @db c
-                           (merge {:target {$ne nil}}
-                                  (mongo-time t0 tmax))))
-           cascades)
-          (map :target)
-          frequencies
-          vals
-          statistics)
-     "tags"
-     ;; topics degree
-     (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
-          (map :source)
-          frequencies
-          vals
-          statistics)}
+    (case label
+      "users" (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
+                   (map :source)
+                   frequencies
+                   vals
+                   statistics)
+      "messages" (->> (mapcat
+                       (fn [c]
+                         (mc/find-maps @db c
+                                       (merge {:target {$ne nil}}
+                                              (mongo-time t0 tmax))))
+                       cascades)
+                      (map :target)
+                      frequencies
+                      vals
+                      statistics)
+      "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
+                  (map :source)
+                  frequencies
+                  vals
+                  statistics)
+      :unrelated)
     :distribution
-    {"users" (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
+    (case label
+      "users" (->> (mc/find-maps @db "pubs" (mongo-time t0 tmax))
+                   (map :source)
+                   frequencies
+                   vals)
+      "messages" (->> (mapcat
+                       (fn [c]
+                         (mc/find-maps @db c
+                                       (merge {:target {$ne nil}}
+                                              (mongo-time t0 tmax))))
+                       cascades)
+                      (map :target)
+                      frequencies
+                      vals)
+      "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
                   (map :source)
                   frequencies
                   vals)
-     "messages" (->> (mapcat
-                      (fn [c]
-                        (mc/find-maps @db c
-                                      (merge {:target {$ne nil}}
-                                             (mongo-time t0 tmax))))
-                      cascades)
-                     (map :target)
-                     frequencies
-                     vals)
-     "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
-                 (map :source)
-                 frequencies
-                 vals)}
+      :unrelated)
     :evolution
     (let [day-range (range (t/in-days (t/interval t0 tmax)))]
-      {"users"
-       (->> day-range
-            (pmap
-             (fn [d]
-               (->> (mongo-time t0 (t/plus t0 (t/hours (inc d))))
-                    (mc/find-maps @db "pubs")
-                    (map :source)
-                    frequencies
-                    vals
-                    statistics))))
-       "messages"
-       (->> day-range
-            (pmap
-             (fn [d]
-               (->> cascades
-                    (mapcat
-                     (fn [c]
-                       (mc/find-maps @db c (merge {:target {$ne nil}}
-                                                  (mongo-time t0
-                                                              (t/plus t0 (t/days (inc d))))))))
-                    (map :target)
-                    frequencies
-                    vals
-                    statistics))))
-       "tags"
-       (->> day-range
-            (pmap
-             (fn [d]
-               (->> (mongo-time t0 (t/plus t0 (t/days (inc d))))
-                    (mc/find-maps @db "tagrefs" )
-                    (map :source)
-                    frequencies
-                    vals
-                    statistics))))})
+      (case label
+        "users" (->> day-range
+                     (pmap
+                      (fn [d]
+                        (->> (mongo-time t0 (t/plus t0 (t/hours (inc d))))
+                             (mc/find-maps @db "pubs")
+                             (map :source)
+                             frequencies
+                             vals
+                             statistics))))
+        "messages" (->> day-range
+                        (pmap
+                         (fn [d]
+                           (->> cascades
+                                (mapcat
+                                 (fn [c]
+                                   (mc/find-maps @db c (merge {:target {$ne nil}}
+                                                              (mongo-time t0
+                                                                          (t/plus t0 (t/days (inc d))))))))
+                                (map :target)
+                                frequencies
+                                vals
+                                statistics))))
+        "tags" (->> day-range
+                    (pmap
+                     (fn [d]
+                       (->> (mongo-time t0 (t/plus t0 (t/days (inc d))))
+                            (mc/find-maps @db "tagrefs" )
+                            (map :source)
+                            frequencies
+                            vals
+                            statistics))))
+        :unrelated))
     :unrelated))
 
 (comment
