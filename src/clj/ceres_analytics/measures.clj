@@ -1,6 +1,7 @@
 (ns ceres-analytics.measures
   (:refer-clojure :exclude [find sort])
   (:require [ceres-analytics.db :refer [db broadcasters]]
+            [ceres-analytics.helpers :refer [contacts cascades nodes mongo-time statistics format-to-table-view table-columns]]
             [monger.collection :as mc]
             [monger.joda-time]
             [incanter.stats :as stats]
@@ -9,30 +10,6 @@
             [monger.operators :refer :all]
             [aprint.core :refer [ap aprint]]
             [monger.query :refer :all]))
-
-(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
-(def cascades ["shares" "replies" "retweets"])
-(def nodes ["users" "messages" "tags"])
-
-(defn mongo-time[t0 tmax]
-  {:ts {$gt t0 $lt tmax}})
-
-(defn statistics [coll]
-  (let [percentiles {:q0 0 :q50 0.5 :q100 1}
-        quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
-    (merge quantiles
-           {:mean (stats/mean coll)
-            :count (count coll)
-            :sd (stats/sd coll)})))
-
-
-(defn format-to-table-view
-  "Formats statistics to mean, sd, median, minimum, maximum"
-  [{:keys [count mean sd q0 q50 q100]}]
-  [mean sd q50 q0 q100 count])
-
-(def table-columns ["Label" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
-
 
 (defn neighborhood
   "Compute neighborhood of given node id"
@@ -263,59 +240,48 @@
 
 (defn contact-latency
   "Compute contact latency on given temporal granularity level for cascades"
-  [cs t0 tmax granularity]
+  [label t0 tmax granularity]
   (case granularity
     :statistics
-    (->> cs
-         (map
-          (fn [c]
-            (->> (mc/find-maps @db c {:ts {$gt t0
-                                           $ne nil
-                                           $lt tmax}
-                                      :source {$ne nil}
-                                      :target {$ne nil}})
+    (->> (mc/find-maps @db label {:ts {$gt t0
+                                       $ne nil
+                                       $lt tmax}
+                                  :source {$ne nil}
+                                  :target {$ne nil}})
+         (pmap
+          (fn [{:keys [target ts]}]
+            (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+              (/ (t/in-seconds
+                  (t/interval target-ts ts))
+                 3600)
+              nil)))
+         (remove nil?)
+         statistics)
+    :distribution
+    (->> (mc/find-maps @db label {:ts {$gt t0 $lt tmax} :target {$ne nil}})
+         (pmap
+          (fn [{:keys [target ts]}]
+            (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
+              (t/in-seconds (t/interval target-ts ts))
+              nil)))
+         (remove nil?))
+    :evolution
+    (->> (t/interval t0 tmax)
+         t/in-days
+         range
+         (mapv
+          (fn [d]
+            (->> (mc/find-maps @db label {:ts  {$gt t0
+                                                $lt (t/plus t0 (t/days (inc d)))}
+                                          :source {$ne nil}
+                                          :target {$ne nil}})
                  (pmap
                   (fn [{:keys [target ts]}]
                     (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                      (t/in-seconds
-                       (t/interval target-ts ts))
+                      (/ (t/in-seconds (t/interval target-ts ts)) 3600)
                       nil)))
                  (remove nil?)
-                 statistics)))
-         (zipmap cs))
-    :distribution
-    (->> cs
-         (map
-          (fn [c]
-            (->> (mc/find-maps @db c {:ts {$gt t0 $lt tmax} :target {$ne nil}})
-                 (pmap
-                  (fn [{:keys [target ts]}]
-                    (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                       (t/in-seconds (t/interval target-ts ts))
-                      nil)))
-                 (remove nil?))))
-         (zipmap cs))
-    :evolution
-    (->> cs
-         (map
-          (fn [c]
-            (->> (t/interval t0 tmax)
-                 t/in-days
-                 range
-                 (mapv
-                  (fn [d]
-                    (->> (mc/find-maps @db c {:ts  {$gt t0
-                                                    $lt (t/plus t0 (t/days (inc d)))}
-                                              :source {$ne nil}
-                                              :target {$ne nil}})
-                         (pmap
-                          (fn [{:keys [target ts]}]
-                            (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-                              (/ (t/in-seconds (t/interval target-ts ts)) 3600)
-                              nil)))
-                         (remove nil?)
-                         statistics))))))
-         (zipmap cs))
+                 statistics))))
     :unknown))
 
 (defn inter-contact-time
@@ -376,7 +342,7 @@
                       vals
                       statistics)
       "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
-                  (map :source)
+                  (map :target)
                   frequencies
                   vals
                   statistics)

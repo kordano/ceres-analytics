@@ -25,5 +25,32 @@
   [{:keys [count mean sd q0 q50 q100]}]
   [mean sd q50 q0 q100 count])
 
-(def table-columns ["Label" "Average" "Standard Deviation" "Medium" "Minimum" "Maximum" "Count"])
 
+(def table-columns ["Label" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
+
+(defn element-name [e]
+  (case e
+    "pubs" "Publication"
+    "unknown" "Unknown"
+    "tagrefs" "Assignment"
+    "shares" "Share"
+    "retweets" "Re-tweet"
+    "replies" "Reply"
+    "users" "Author"
+    "messages" "Message"
+    "tags" "Topic"
+    ))
+
+(defn element-color [e]
+  (case e
+    "unknown" "#001f3f"
+    "pubs" "#3d9970"
+    "tagrefs" "#ff851b"
+    "retweets" "#b10dc9"
+    "replies" "#007dd9"
+    "shares" "#7fdbff"
+    "users" "#39cccc"
+    "messages" "#111111"
+    "tags" "#2ecc40"
+    :unrelated
+    ))

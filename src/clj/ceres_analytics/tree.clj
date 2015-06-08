@@ -8,18 +8,15 @@
             [clojure.string :refer [split join lower-case]]
             [clojure.walk :as walk]
             [clojure.zip :as zip]
-            [aprint.core :refer [aprint]]
             [clj-time.core :as t]
             [clj-time.format :as f]
             [clj-time.coerce :as c]
             [clj-time.periodic :as p]
-            [clojure.pprint :refer [pprint]]
             [incanter.stats :refer [mean variance quantile]]
-            [ceres-analytics.core :refer [db custom-formatter news-accounts]])
+            [ceres-analytics.db :refer [db news-users]])
  (:import org.bson.types.ObjectId))
 
 (defrecord Message [source reactions])
-
 
 (defn find-reactions [pid]
   (let [reactions (apply concat (map #(mc/find-maps @db % {:target pid}) ["retweets" "replies" "shares"]))]
@@ -132,7 +129,7 @@
 
 (comment
 
-  (def users (mc/find-maps @db "users" {:name {$in news-accounts}}))
+  (def users (mc/find-maps @db "users" {:name {$in (map :name news-users)}}))
 
   (def user-messages (apply concat (map #(mc/find-maps @db "pubs" {:source (:_id %)}) users)))
 

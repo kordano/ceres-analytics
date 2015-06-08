@@ -16,10 +16,6 @@
                  [cheshire "5.4.0"]
                  [com.novemberain/monger "2.1.0"]
                  [incanter "1.9.0"]
-                 [net.sf.jung/jung-algorithms "2.0.1"]
-                 [net.sf.jung/jung-api "2.0.1"]
-                 [net.sf.jung/jung-graph-impl "2.0.1"]
-                 [org.clojure/data.priority-map "0.0.6"]
                  [com.taoensso/timbre "3.4.0"]
 
                  ;; backend
