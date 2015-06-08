@@ -2,7 +2,7 @@
 
 ;; **
 ;;; # OVERALL NETWORK
-;;; In the following the complete network is studying by using a subset of measures explained in Section (ref). This worksheet compiles measures between 3 April 2015 and 3 May 2015 by computing statistics for hourly expansions, distributions over 30 days, as well as the average value at a time of day on the complete dataset. 
+;;; In the following the complete network is studying by using a subset of measures explained in Section (ref). This worksheet compiles measures between 5 April 2015 and 15 April 2015 by computing statistics for hourly expansions, distributions over 30 days, as well as the average value at a time of day on the complete dataset. 
 ;; **
 
 ;; @@
