@@ -12,23 +12,26 @@
             [monger.query :refer :all]))
 
 
-
-
-
 (defn compound-size
   "Compute lifetime of a compound"
   [author t0 tmax granularity]
   (case granularity
+    :fractions
+    (let [links (:links (get-user-tree author t0 tmax)) ]
+      {:overall  (count links)
+       :zero (->> links (pmap (comp count second)) (filter #{0}) count)})
     :statistics
     (->> (get-user-tree author t0 tmax)
          :links
          (pmap (comp count second))
-         statistics
-         )
+         statistics)
     :distribution
-    (->> (get-user-tree author t0 tmax)
-         :links
-         (pmap (comp count second)))
+    (let [links (:links (get-user-tree author t0 tmax))
+          lsize (count links)]
+      (->> links
+           (pmap (comp count second))
+           frequencies
+           (pmap (fn [[k v]] [k (/ v lsize)]))))
     :evolution
     (->> (t/interval t0 tmax)
          t/in-days
@@ -253,16 +256,21 @@
                 ["replies" "retweets" "shares"]))))
            statistics)
       :distribution
-      (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt tmax}})
-           (map :target)
-           (into #{})
-           (map
-            (fn [id]
-              (reduce
-               +
-               (map
-                #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
-                ["replies" "retweets" "shares"])))))
+      (let [pubs (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt tmax}})
+                      (map :target)
+                      (into #{}))
+            pcount (count pubs)]
+        (->> pubs
+             (map
+              (fn [id]
+                (reduce
+                 +
+                 (map
+                  #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                  ["replies" "retweets" "shares"]))))
+             frequencies
+             (map (fn [[k v]] [k (/ v pcount)]))))
+      
       :evolution
       (->> (t/interval t0 tmax)
            t/in-days
@@ -270,16 +278,16 @@
            (map
             (fn [d]
               (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt (t/plus t0 (t/days (inc d)))}})
-                    (map :target)
-                    (into #{})
-                    (map
-                     (fn [id]
-                       (reduce
-                        +
-                        (map
-                         #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
-                         ["replies" "retweets" "shares"]))))
-                    statistics))))
+                   (map :target)
+                   (into #{})
+                   (map
+                    (fn [id]
+                      (reduce
+                       +
+                       (map
+                        #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                        ["replies" "retweets" "shares"]))))
+                   statistics))))
       :unrelated))
   )
 
