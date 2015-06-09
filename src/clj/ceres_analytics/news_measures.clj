@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [find sort])
   (:require [ceres-analytics.db :refer [db broadcasters]]
             [ceres-analytics.helpers :refer [contacts cascades statistics format-to-table-view]]
-            [ceres-analytics.cascade :refer [compounds]]
+            [ceres-analytics.cascade :refer [compounds get-user-tree]]
             [monger.collection :as mc]
             [monger.joda-time]
             [incanter.stats :as stats]
@@ -12,12 +12,11 @@
             [aprint.core :refer [ap aprint]]
             [monger.query :refer :all]))
 
+
 (def news-authors
   (->> (mc/find-maps @db "users" {:name {$in broadcasters}})
        (map #(select-keys % [:name :_id]))
        (take 14)))
-
-
 
 
 (defn overall-size
@@ -85,6 +84,10 @@
               Math/floor))))
    links))
 
+
+
+
+
 (defn temporal-radius
   "Computes temporal radius of a compound"
   [{:keys [links nodes] :as compound}]
@@ -102,24 +105,55 @@
 
 (defn lifetime
   "Compute lifetime of a compound"
-  [{:keys [links nodes] :as compound}]
-  (->> links
-       (pmap
-        (fn [[l ls]]
-          (let [contact-times (map (comp c/to-long :ts) ls)]
-            (if (empty? contact-times)
-              0
-              (t/in-minutes
-               (t/interval
-                (:ts l)
-                (-> (apply max contact-times)
-                    c/from-long)))))))
-       statistics))
+  [author t0 tmax granularity]
+  (case granularity
+    :statistics
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [contact-times (map (comp c/to-long :ts) ls)]
+              (if (empty? contact-times)
+                0
+                (t/in-minutes
+                 (t/interval
+                  (:ts l)
+                  (-> (apply max contact-times)
+                      c/from-long)))))))
+         statistics)
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [contact-times (map (comp c/to-long :ts) ls)]
+              (if (empty? contact-times)
+                0
+                (t/in-minutes
+                 (t/interval
+                  (:ts l)
+                  (-> (apply max contact-times)
+                      c/from-long))))))))
+    :evolution
+    (->> (t/interval t0 tmax)
+         t/in-days
+         range
+         (map
+          #(->> (get-user-tree author t0 (t/plus t0 (t/days (inc %))))
+               :links
+               (pmap
+                (fn [[l ls]]
+                  (let [contact-times (map (comp c/to-long :ts) ls)]
+                    (if (empty? contact-times)
+                      0
+                      (t/in-minutes
+                       (t/interval
+                        (:ts l)
+                        (-> (apply max contact-times)
+                            c/from-long)))))))
+               statistics)))
+    :unrelated))
 
-(defn contact-latency
-  ""
-  []
-  )
 
 (defn inter-contact-times
   "Compute inter-contact times in given compound set"
@@ -153,15 +187,15 @@
 
   (def t0 (t/date-time 2015 4 5))
 
-  (def tmax (t/date-time 2015 5 5))
+  (def tmax (t/date-time 2015 4 15))
   
 
   (ap)
 
-  (for [na (take 2 news-authors)]
-(->> (inter-contact-times (get (compounds (filter #{na} news-authors) t0 tmax) (:name na)) :overall)
-         aprint
-         time))
+  (for [na (map :name news-authors)]
+    (do
+      (aprint na)
+      (aprint (lifetime na t0 tmax :evolution))))
 
   
   )

@@ -74,7 +74,7 @@
 
 (defn compounds [users t0 tmax]
   (zipmap (pmap :name users) 
-          (pmap #(get-user-tree (:name %) {$gt t0 $lt tmax}) users)))
+          (pmap #(get-user-tree (:name %) t0 tmax) users)))
 
 (comment
   
