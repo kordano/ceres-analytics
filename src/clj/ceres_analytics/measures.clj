@@ -1,7 +1,6 @@
 (ns ceres-analytics.measures
   (:refer-clojure :exclude [find sort])
-  (:require [ceres-analytics.db :refer [db broadcasters]]
-            [ceres-analytics.helpers :refer [contacts cascades nodes mongo-time statistics format-to-table-view table-columns]]
+  (:require [ceres-analytics.helpers :refer [contacts cascades nodes mongo-time statistics format-to-table-view table-columns db broadcasters]]
             [monger.collection :as mc]
             [monger.joda-time]
             [incanter.stats :as stats]

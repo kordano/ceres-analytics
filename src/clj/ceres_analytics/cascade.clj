@@ -1,23 +1,14 @@
 (ns ceres-analytics.cascade
   (:refer-clojure :exclude [find sort])
   (:require [monger.collection :as mc]
-            [monger.core :as mg]
+            [ceres-analytics.helpers :refer [db]]
             [aprint.core :refer [ap]]
-            [incanter.stats :as stats]
             [monger.joda-time]
             [monger.operators :refer :all]
             [monger.query :refer :all]
             [clj-time.coerce :as c]
             [clj-time.core :as t]))
 
-
-(def time-slice-0 {$gt (t/date-time 2015 4 5) $lt (t/date-time 2015 5 5)})
-
-
-(def db (atom
-         (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
-               ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
-           (mg/get-db (mg/connect sa opts) "juno"))))
 
 
 (defn find-links [{:keys [source target group ts] :as link} t0 tmax]

@@ -1,7 +1,6 @@
 (ns ceres-analytics.news-measures
   (:refer-clojure :exclude [find sort])
-  (:require [ceres-analytics.db :refer [db broadcasters]]
-            [ceres-analytics.helpers :refer [contacts cascades statistics format-to-table-view]]
+  (:require [ceres-analytics.helpers :refer [news-authors contacts cascades statistics format-to-table-view db]]
             [ceres-analytics.cascade :refer [compounds get-user-tree]]
             [monger.collection :as mc]
             [monger.joda-time]
@@ -13,76 +12,88 @@
             [monger.query :refer :all]))
 
 
-(def news-authors
-  (->> (mc/find-maps @db "users" {:name {$in broadcasters}})
-       (map #(select-keys % [:name :_id]))
-       (take 14)))
 
 
-(defn overall-size
-  "Compute overall size of each given author for each cascade label"
-  [authors t0 tmax granularity]
+
+(defn compound-size
+  "Compute lifetime of a compound"
+  [author t0 tmax granularity]
   (case granularity
-    :hourly
-    (->> authors
-         (pmap
-          (fn [{:keys [_id name]}]
-            (->> (t/interval t0 tmax)
-                 t/in-hours
-                 range
-                 (pmap
-                  (fn [h]
-                    (mc/count @db "pubs" {:source _id
-                                          :ts {$gt (t/plus t0 (t/hours h))
-                                               $lt (t/plus t0 (t/hours (inc h)))}})))
-                 statistics)))
-         (zipmap (map :name authors)))
-    :daily
-    (->> authors
+    :statistics
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap (comp count second))
+         statistics
+         )
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap (comp count second)))
+    :evolution
+    (->> (t/interval t0 tmax)
+         t/in-days
+         range
          (map
-          (fn [{:keys [_id name]}]
-            (let [day-range (range (t/in-days (t/interval t0 tmax)))]
-              (->> day-range
-                   (map
-                    (fn [d]
-                      (mc/count @db "pubs" {:source _id
-                                            :ts {$gt (t/plus t0 (t/days d))
-                                                 $lt (t/plus t0 (t/days (inc d)))}})))
-                   (zipmap day-range)))))
-         (zipmap (map :name authors)))
-    :time
-    (->> authors
-         (pmap
-          (fn [{:keys [_id name]}]
-            (->> (t/interval t0 tmax)
-                 t/in-hours
-                 range
-                 (pmap
-                  (fn [h]
-                    {(mod h 24)
-                     [(mc/count @db "pubs" {:source _id
-                                            :ts {$gt (t/plus t0 (t/hours h))
-                                                 $lt (t/plus t0 (t/hours (inc h)))}})]}))
-                 (apply merge-with concat)
-                 (map (fn [[k v]] [k (statistics v)]))
-                 (into {}))))
-         (zipmap (map :name authors)))
-    :unknown))
+          #(->> (get-user-tree author t0 (t/plus t0 (t/days (inc %))))
+                :links
+                (pmap (comp count second))
+                statistics)))
+    :unrelated))
+
 
 (defn temporal-diameter
   "Computes temporal diameter of a compound"
-  [{:keys [links nodes] :as compound}]
-  (pmap
-   (fn [[l ls]]
-     (let [node-times (map (comp c/to-long :ts) ls)]
-       (if (empty? node-times)
-         0
-         (->> (t/interval
-               (c/from-long (apply min node-times))
-               (c/from-long (apply max node-times)))
-              t/in-minutes
-              Math/floor))))
-   links))
+  [author t0 tmax granularity]
+  (case granularity
+    :statistics
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [node-times (map (comp c/to-long :ts) ls)]
+              (if (empty? node-times)
+                nil
+                (/ (->> (t/interval
+                         (c/from-long (apply min node-times))
+                         (c/from-long (apply max node-times)))
+                        t/in-seconds)
+                   3600)))))
+         (remove nil?)
+         statistics)
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [node-times (map (comp c/to-long :ts) ls)]
+              (if (empty? node-times)
+                nil
+                (/ (->> (t/interval
+                         (c/from-long (apply min node-times))
+                         (c/from-long (apply max node-times)))
+                        t/in-seconds)
+                   3600)))))
+         (remove nil?))
+    :evolution
+    (->> (t/interval t0 tmax)
+         t/in-days
+         range
+         (map
+          #(->> (get-user-tree author t0 (t/plus t0 (t/days (inc %))))
+                :links
+                (pmap
+                 (fn [[l ls]]
+                   (let [node-times (map (comp c/to-long :ts) ls)]
+                     (if (empty? node-times)
+                       nil
+                       (/ (->> (t/interval
+                              (c/from-long (apply min node-times))
+                              (c/from-long (apply max node-times)))
+                             t/in-seconds)
+                          3600)))))
+                (remove nil?)
+                statistics)))
+    :unrelated))
 
 
 
@@ -90,17 +101,58 @@
 
 (defn temporal-radius
   "Computes temporal radius of a compound"
-  [{:keys [links nodes] :as compound}]
-  (->> links
-       (pmap
-        (fn [[l ls]]
-          (let [contact-times (map (comp c/to-long :ts) ls)]
-            (if (empty? contact-times)
-              0
-              (t/in-minutes (t/interval
-                             (:ts l)
-                             (->> contact-times (apply min) c/from-long)))))))
-       statistics))
+  [author t0 tmax granularity]
+  (case granularity
+    :statistics
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [contact-times (map (comp c/to-long :ts) ls)]
+              (if (empty? contact-times)
+                nil
+                (/ (t/in-seconds (t/interval
+                                  (:ts l)
+                                  (->> contact-times (apply min) c/from-long)))
+                   60)))))
+         (remove nil?)
+         statistics)
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links
+         (pmap
+          (fn [[l ls]]
+            (let [contact-times (map (comp c/to-long :ts) ls)]
+              (if (empty? contact-times)
+                nil
+                (/ (t/in-seconds (t/interval
+                                  (:ts l)
+                                  (->> contact-times (apply min) c/from-long)))
+                   60)))))
+         (remove nil?)
+         )
+    :evolution
+    (->> (t/interval t0 tmax)
+         t/in-days
+         range
+         (map
+          #(->> (get-user-tree author t0 (t/plus t0 (t/days (inc %))))
+                :links
+                (pmap
+                 (fn [[l ls]]
+                   (let [contact-times (map (comp c/to-long :ts) ls)]
+                     (if (empty? contact-times)
+                       nil
+                       (/ (t/in-seconds (t/interval
+                                         (:ts l)
+                                         (->> contact-times (apply min) c/from-long)))
+                          60)))))
+                (remove nil?)
+                statistics)))
+    :unrelated))
+
+
+
 
 
 (defn lifetime
@@ -115,11 +167,12 @@
             (let [contact-times (map (comp c/to-long :ts) ls)]
               (if (empty? contact-times)
                 0
-                (t/in-minutes
-                 (t/interval
-                  (:ts l)
-                  (-> (apply max contact-times)
-                      c/from-long)))))))
+                (/ (t/in-seconds
+                    (t/interval
+                     (:ts l)
+                     (-> (apply max contact-times)
+                         c/from-long)))
+                   3600)))))
          statistics)
     :distribution
     (->> (get-user-tree author t0 tmax)
@@ -129,29 +182,34 @@
             (let [contact-times (map (comp c/to-long :ts) ls)]
               (if (empty? contact-times)
                 0
-                (t/in-minutes
-                 (t/interval
-                  (:ts l)
-                  (-> (apply max contact-times)
-                      c/from-long))))))))
+                (/
+                 (t/in-seconds
+                  (t/interval
+                   (:ts l)
+                   (-> (apply max contact-times)
+                       c/from-long)))
+                 3600))))))
     :evolution
     (->> (t/interval t0 tmax)
          t/in-days
          range
          (map
           #(->> (get-user-tree author t0 (t/plus t0 (t/days (inc %))))
-               :links
-               (pmap
-                (fn [[l ls]]
-                  (let [contact-times (map (comp c/to-long :ts) ls)]
-                    (if (empty? contact-times)
-                      0
-                      (t/in-minutes
-                       (t/interval
-                        (:ts l)
-                        (-> (apply max contact-times)
-                            c/from-long)))))))
-               statistics)))
+                :links
+                (pmap
+                 (fn [[l ls]]
+                   (let [contact-times (map (comp c/to-long :ts) ls)]
+                     (if (empty? contact-times)
+                       0
+                       (/
+                        (t/in-seconds
+                         (t/interval
+                          (:ts l)
+                          (-> (apply max contact-times)
+                              c/from-long)))
+                        3600)
+                       ))))
+                statistics)))
     :unrelated))
 
 
@@ -176,11 +234,55 @@
     :time nil
     :unrelated))
 
-(defn source-degree
-  ""
-  [broadcaster t0 tmax granularity]
-  
+
+(defn center-degree
+  "Computes the degree of the compound's origin node"
+  [author t0 tmax granularity]
+  (let [user (mc/find-one-as-map @db "users" {:name author})]
+    (case granularity
+      :statistics
+      (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt tmax}})
+           (map :target)
+           (into #{})
+           (map
+            (fn [id]
+              (reduce
+               +
+               (map
+                #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                ["replies" "retweets" "shares"]))))
+           statistics)
+      :distribution
+      (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt tmax}})
+           (map :target)
+           (into #{})
+           (map
+            (fn [id]
+              (reduce
+               +
+               (map
+                #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                ["replies" "retweets" "shares"])))))
+      :evolution
+      (->> (t/interval t0 tmax)
+           t/in-days
+           range
+           (map
+            (fn [d]
+              (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt (t/plus t0 (t/days (inc d)))}})
+                    (map :target)
+                    (into #{})
+                    (map
+                     (fn [id]
+                       (reduce
+                        +
+                        (map
+                         #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                         ["replies" "retweets" "shares"]))))
+                    statistics))))
+      :unrelated))
   )
+
 
 
 (comment
@@ -188,14 +290,12 @@
   (def t0 (t/date-time 2015 4 5))
 
   (def tmax (t/date-time 2015 4 15))
-  
 
   (ap)
 
   (for [na (map :name news-authors)]
     (do
       (aprint na)
-      (aprint (lifetime na t0 tmax :evolution))))
-
+      (aprint (compound-size na t0 tmax :statistics))))
   
   )

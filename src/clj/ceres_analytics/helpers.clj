@@ -1,8 +1,29 @@
 (ns ceres-analytics.helpers
   (:refer-clojure :exclude [find sort])
   (:require [incanter.stats :as stats]
+            [monger.collection :as mc]
+            [monger.core :as mg]
+            [clj-time.core :as t]
             [monger.operators :refer :all]
             [monger.query :refer :all]))
+
+(def t0 (t/date-time 2015 4 5))
+(def tmax (t/date-time 2015 4 15))
+
+(def db (atom
+           (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
+                 ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
+             (mg/get-db (mg/connect sa opts) "juno"))))
+
+
+(def broadcasters #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "sternde" "focusonline"})
+
+
+(def news-authors
+  (->> (mc/find-maps @db "users" {:name {$in broadcasters}})
+       (map #(select-keys % [:name :_id]))
+       (take 14)))
+
 
 (def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
 (def cascades ["shares" "replies" "retweets"])
@@ -20,13 +41,14 @@
             :sd (stats/sd coll)})))
 
 
+
 (defn format-to-table-view
   "Formats statistics to mean, sd, median, minimum, maximum"
   [{:keys [count mean sd q0 q50 q100]}]
   [mean sd q50 q0 q100 count])
 
 
-(def table-columns ["Label" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
+(def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
 
 (defn element-name [e]
   (case e
@@ -39,6 +61,7 @@
     "users" "Author"
     "messages" "Message"
     "tags" "Topic"
+    e
     ))
 
 (defn element-color [e]
