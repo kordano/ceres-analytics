@@ -269,10 +269,68 @@
       :unrelated)))
 
 
+(defn temporal-distance
+  "Compute average temporal distance for each compound"
+  [author t0 tmax granularity]
+  (case granularity
+    :statistics
+    (->> (get-user-tree author t0 tmax)
+         :links 
+         (pmap
+          (fn [[l ls]]
+            (if (empty? ls)
+              nil
+              (stats/mean (pmap #(t/in-seconds (t/interval (:ts l) (:ts %))) ls)))))
+         (remove nil?)
+         statistics)
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links 
+         (pmap
+          (fn [[l ls]]
+            (if (empty? ls)
+              nil
+              (statistics (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
+         (remove nil?))
+    :evolution
+    (->> (t/interval t0 tmax)
+         (t/in-days)
+         range
+         (pmap
+          (fn [d]
+            (->> (get-user-tree author t0 (t/plus t0 (t/days d)))
+                 :links 
+                 (pmap
+                  (fn [[l ls]]
+                    (if (empty? ls)
+                      nil
+                      (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
+                 (remove nil?)
+                 statistics))))
+    :unrelated))
+
+
 (defn size-lifetime
   "Computes size-lifetime tuple distribution and evolution for any author's news compound"
   [author t0 tmax granularity]
   (case granularity
+    :correlation
+    (let [result  (->> (get-user-tree author t0 tmax)
+                       :links
+                       (pmap
+                        (fn [[l ls]]
+                          (let [contact-times (map (comp c/to-long :ts) ls)]
+                            (if (empty? contact-times)
+                              [0 0]
+                              [(count contact-times)
+                               (/
+                                (t/in-seconds
+                                 (t/interval
+                                  (:ts l)
+                                  (-> (apply max contact-times)
+                                      c/from-long)))
+                                3600)])))))]
+      (stats/correlation (map first result) (map second result)))
     :distribution
     (let [links (:links (get-user-tree author t0 tmax))
           lsize (count links)]
@@ -359,49 +417,10 @@
                    #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
                    ["replies" "retweets" "shares"]))])))))
     :evolution nil
-    :unrelated)
-  )
-
-
-(defn temporal-distance
-  "Compute average temporal distance for each compound"
-  [author t0 tmax granularity]
-  (case granularity
-    :statistics
-    (->> (get-user-tree author t0 tmax)
-         :links 
-         (pmap
-          (fn [[l ls]]
-            (if (empty? ls)
-              nil
-              (stats/mean (pmap #(t/in-seconds (t/interval (:ts l) (:ts %))) ls)))))
-         (remove nil?)
-         statistics)
-    :distribution
-    (->> (get-user-tree author t0 tmax)
-         :links 
-         (pmap
-          (fn [[l ls]]
-            (if (empty? ls)
-              nil
-              (statistics (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
-         (remove nil?))
-    :evolution
-    (->> (t/interval t0 tmax)
-         (t/in-days)
-         range
-         (pmap
-          (fn [d]
-            (->> (get-user-tree author t0 (t/plus t0 (t/days d)))
-                 :links 
-                 (pmap
-                  (fn [[l ls]]
-                    (if (empty? ls)
-                      nil
-                      (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
-                 (remove nil?)
-                 statistics))))
     :unrelated))
+
+
+
 
 
 (comment

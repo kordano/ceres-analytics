@@ -8,7 +8,7 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 4 15))
+(def tmax (t/date-time 2015 5 5))
 
 (def db (atom
            (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -25,7 +25,7 @@
        (take 14)))
 
 
-(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown"])
+(def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown" "sources"])
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
@@ -33,7 +33,7 @@
   {:ts {$gt t0 $lt tmax}})
 
 (defn statistics [coll]
-  (let [percentiles {:q0 0 :q50 0.5 :q100 1}
+  (let [percentiles {:q0 0 :q50 0.5 :q100 1 :q95 0.95}
         quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
     (merge quantiles
            {:mean (stats/mean coll)
@@ -44,11 +44,11 @@
 
 (defn format-to-table-view
   "Formats statistics to mean, sd, median, minimum, maximum"
-  [{:keys [count mean sd q0 q50 q100]}]
-  [mean sd q50 q0 q100 count])
+  [{:keys [count mean sd q0 q50 q100 q95]}]
+  [mean sd q50 q0 q100 q95 count])
 
 
-(def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "Count"])
+(def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "95 Percentile" "Count"])
 
 (defn element-name [e]
   (case e
@@ -61,6 +61,7 @@
     "users" "Author"
     "messages" "Message"
     "tags" "Topic"
+    "sources" "Article"
     e
     ))
 

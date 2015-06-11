@@ -20,93 +20,96 @@
                                    {:ts {$lt t0}
                                     :target id}]}) contacts)))
 
-
 (defn nw-size
-  "Computes size of network on different temporal granularity levels"
-  [cs t0 tmax granularity]
+  "Computes size of subclass network on different temporal granularity levels"
+  [subclass  t0 tmax granularity]
   (case granularity
-    :overall (zipmap cs (map #(mc/count @db % {:ts {$gt t0 $lt tmax}}) cs))
+    :overall (mc/count @db subclass {:ts {$gt t0 $lt tmax}})
     :hourly
-    (zipmap
-     cs
-     (map
-      #(let [hour-range (range (t/in-hours (t/interval t0 tmax)))]
-         (statistics (map
-                      (fn [h] (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                                    $lt (t/plus t0 (t/hours (inc h)))}}))
-                      hour-range)))
-      cs))
-    :daily
-    (zipmap
-     cs
-     (map
-      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
-         (zipmap
-          day-range
-          (map
-           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
-                                         $lt (t/plus t0 (t/days (inc d)))}}))
-           day-range)))
-      cs))
+    (->> (t/interval t0 tmax)
+         t/in-hours
+         range
+         (map
+          (fn [h]
+            (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                         $lt (t/plus t0 (t/hours (inc h)))}})))
+         statistics)
+    :distribution
+    (->> (t/interval t0 tmax)
+         t/in-hours
+         range
+         (map
+          (fn [h]
+            (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                         $lt (t/plus t0 (t/hours (inc h)))}}))))
+    :evolution
+    (let [day-range (range (t/in-days (t/interval t0 tmax)))
+          overall-size (mc/count @db subclass {:ts {$gt t0 $lt tmax}})]
+      (->> (t/interval t0 tmax)
+           t/in-days
+           range
+           (map
+            (fn [d] (/ (mc/count @db subclass {:ts {$gt (t/plus t0 (t/days d))
+                                                    $lt (t/plus t0 (t/days (inc d)))}})
+                       overall-size)))))
     :time
-    (zipmap
-     cs
-     (map
-      #(->> (range (t/in-hours (t/interval t0 tmax)))
-            (map (fn [h]
-                   {(mod h 24)
-                    [(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                           $lt (t/plus t0 (t/hours (inc h)))}})]}))
-            (apply merge-with concat)
-            (map (fn [[k v]] [k (statistics v)]))
-            (into {}))
-      cs))
+    (let [time-range (t/interval t0 tmax)
+          overall-size (/ (mc/count @db subclass {:ts {$gt t0 $lt tmax}}) (t/in-days time-range ))]
+      (->> time-range
+           t/in-hours
+           range
+           (map (fn [h]
+                  {(mod h 24)
+                   [(/ (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                                    $lt (t/plus t0 (t/hours (inc h)))}})
+                       overall-size)]}))
+           (apply merge-with concat)
+           (map (fn [[k v]] [k (statistics v)]))
+           (into {})))
     :unknown))
 
 
 
 (defn order
   "Computes order of the network at different granularity levels"
-  [n t0 tmax granularity]
+  [subclass t0 tmax granularity]
   (case granularity
-    :overall (zipmap n (map #(mc/count @db % {:ts {$gt t0 $lt tmax}}) n))
-    :hourly
-    (zipmap
-     n
-     (map
-      #(->> (range (t/in-hours (t/interval t0 tmax)))
-            (map
-             (fn [h]
-               (mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                     $lt (t/plus t0 (t/hours (inc h)))}})))
-            statistics)
-      n))
-    :daily
-    (zipmap
-     n
-     (map
-      #(let [day-range (range (t/in-days (t/interval t0 tmax)))]
-         (zipmap
-          day-range
-          (map
-           (fn [d] (mc/count @db % {:ts {$gt (t/plus t0 (t/days d))
-                                         $lt (t/plus t0 (t/days (inc d)))}}))
-           day-range)))
-      n))
-    :time
-    (zipmap
-     n
-     (map
-      #(->> (range (t/in-hours (t/interval t0 tmax)))
-            (map (fn [h]
-                   {(mod h 24)
-                    [(mc/count @db % {:ts {$gt (t/plus t0 (t/hours h))
-                                           $lt (t/plus t0 (t/hours (inc h)))}})]}))
-            (apply merge-with concat)
-            (map (fn [[k v]] [k (statistics v)]))
-            (into {}))
-      n))
-    :unknown))
+    :overall (mc/count @db subclass {:ts {$gt t0 $lt tmax}})
+    :hourly (->> (range (t/in-hours (t/interval t0 tmax)))
+                 (map
+                  (fn [h]
+                    (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                                 $lt (t/plus t0 (t/hours (inc h)))}})))
+                 statistics)
+    :distribution (->> (range (t/in-hours (t/interval t0 tmax)))
+                       (map
+                        (fn [h]
+                          (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                                       $lt (t/plus t0 (t/hours (inc h)))}}))))
+    :evolution (let [overall-order (mc/count @db subclass {:ts {$gt t0 
+                                                                $lt tmax}})]
+                 (->> (t/interval t0 tmax)
+                      t/in-days 
+                      range
+                      (map
+                       (fn [d]
+                         (/ (mc/count @db subclass {:ts {$gt (t/plus t0 (t/days d))
+                                                         $lt (t/plus t0 (t/days (inc d)))}})
+                            overall-order)))))
+    :time (let [time-range (t/interval t0 tmax)
+                day-average (/ (mc/count @db subclass {:ts {$gt t0 $lt tmax}}) (t/in-days time-range))]
+            (->> time-range
+                 t/in-hours 
+                 range 
+                 (map (fn [h]
+                        {(mod h 24)
+                         [(/ (mc/count @db subclass {:ts {$gt (t/plus t0 (t/hours h))
+                                                          $lt (t/plus t0 (t/hours (inc h)))}})
+                             day-average)]}))
+                 (apply merge-with concat)
+                 (map (fn [[k v]] [k (statistics v)]))
+                 (into {})))
+    :unrelated))
 
 
 ;; --- density ---
@@ -175,65 +178,59 @@
          (apply merge-with concat)
          (map (fn [[k v]] [k (statistics v)]))
          (into {}))
-    :unknown))
+    :unrelated))
 
 
 
 ;; --- total degree ---
 (defn total-degree
   "Computes total degree for given contact types between given start and end point and a given temporal granularity"
-  [cs t0 tmax granularity]
+  [subclass t0 tmax granularity]
   (case granularity
-    :overall
-    (->> cs
-         (map (fn [c] (* 2 (mc/count @db c (mongo-time t0 tmax)))))
-         (zipmap cs))
-    :hourly (->> cs
-                 (map
-                  (fn [c]
-                    (->> (t/interval t0 tmax)
-                         t/in-hours
-                         range
-                         (map
-                          (fn [h]
-                            (* 2
-                               (mc/count @db c
-                                         (mongo-time (t/plus t0 (t/hours h))
-                                                     (t/plus t0 (t/hours (inc h))))))))
-                         statistics)))
-                 (zipmap cs))
-    :daily
-    (let [day-range (range (t/in-days (t/interval t0 tmax)))]
-      (->> cs
-           (map
-            (fn [c]
-              (->> day-range
-                   (pmap
-                    #(* 2
-                        (mc/count @db c
-                                  (mongo-time (t/plus t0 (t/days %))
-                                              (t/plus t0 (t/days (inc %)))))))
-                   (zipmap day-range))))
-           (zipmap cs)))
-    :time
-    (->> cs
-         (map
-          (fn [c]
-            (->> (t/interval t0 tmax)
+    :overall (* 2 (mc/count @db subclass (mongo-time t0 tmax))) 
+    :hourly (->> (t/interval t0 tmax)
                  t/in-hours
                  range
                  (map
                   (fn [h]
+                    (* 2
+                       (mc/count @db subclass
+                                 (mongo-time (t/plus t0 (t/hours h))
+                                             (t/plus t0 (t/hours (inc h))))))))
+                 statistics)
+    :distribution (->> (t/interval t0 tmax)
+                       t/in-hours
+                       range
+                       (map
+                        (fn [h]
+                          (* 2
+                             (mc/count @db subclass
+                                       (mongo-time (t/plus t0 (t/hours h))
+                                                   (t/plus t0 (t/hours (inc h)))))))))
+    :evolution (let [overall-degree (* 2 (mc/count @db subclass (mongo-time t0 tmax)))]
+                 (->> (t/interval t0 tmax)
+                      t/in-days 
+                      range 
+                      (pmap
+                       (fn [d]
+                         (/ (* 2
+                               (mc/count @db subclass
+                                         (mongo-time (t/plus t0 (t/days d))
+                                                     (t/plus t0 (t/days (inc d))))))
+                            overall-degree)))))
+    :time (let [time-range (t/interval t0 tmax)
+                average-degree (/ (* 2 (mc/count @db subclass (mongo-time t0 tmax))) (t/in-days time-range))]
+            (->> time-range t/in-hours
+                 range
+                 (map
+                  (fn [h]
                     {(mod h 24)
-                     [(* 2
-                         (mc/count @db c
-                                   (mongo-time (t/plus t0 (t/hours h))
-                                               (t/plus t0 (t/hours (inc h))))))]}))
+                     [(/ (* 2 (mc/count @db subclass (mongo-time (t/plus t0 (t/hours h))
+                                                                 (t/plus t0 (t/hours (inc h))))))
+                         average-degree)]}))
                  (apply merge-with concat)
                  (map (fn [[k v]] [k (statistics v)]))
-                 (into {})
-                 )))
-         (zipmap cs))
+                 (into {})))
     :unrelated))
 
 
@@ -427,5 +424,8 @@
        time)
 
   (time (degree t0 tmax :evolution))
+
+
+  (map #(order % t0 tmax :time) contacts)
 
   )
