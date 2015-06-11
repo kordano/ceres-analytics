@@ -3,7 +3,7 @@
 ;; **
 ;;; # News Compounds Temporal diameter
 ;;; 
-;;; This worksheet examines the temporal diameter of news compounds.
+;;; This worksheet examines the temporal diameter of news compounds in hours.
 ;; **
 
 ;; @@

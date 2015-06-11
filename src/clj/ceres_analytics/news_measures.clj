@@ -13,7 +13,7 @@
 
 
 (defn compound-size
-  "Compute lifetime of a compound"
+  "Compute size of a compound"
   [author t0 tmax granularity]
   (case granularity
     :fractions
@@ -216,28 +216,6 @@
     :unrelated))
 
 
-(defn inter-contact-times
-  "Compute inter-contact times in given compound set"
-  [{:keys [links nodes] :as compound} t0 tmax granularity]
-  (case granularity
-    :overall (let [icts (->> links
-                             (mapv
-                              (fn [[l ls]]
-                                (let [contact-times (map :ts ls)]
-                                  (if (< (count contact-times) 2)
-                                    [0.0]
-                                    (->> contact-times
-                                         (remove nil?)
-                                         (clojure.core/sort t/before?)
-                                         (partition 2 1)
-                                         (pmap (fn [[c1 c2]] (t/in-seconds (t/interval c1 c2))))))))))]
-               {:stats (statistics (map stats/mean icts))
-                :distribution (apply concat icts)})
-    :daily nil
-    :time nil
-    :unrelated))
-
-
 (defn center-degree
   "Computes the degree of the compound's origin node"
   [author t0 tmax granularity]
@@ -288,8 +266,32 @@
                         #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
                         ["replies" "retweets" "shares"]))))
                    statistics))))
-      :unrelated))
-  )
+      :unrelated)))
+
+
+(defn size-lifetime
+  "Computes size-lifetime tuple distribution and evolution for any author's news compound"
+  [author t0 tmax granularity]
+  (case granularity
+    :distribution
+    (let [links (:links (get-user-tree author t0 tmax))
+          lsize (count links)]
+      (->> links
+           (pmap
+            (fn [[l ls]]
+              (let [contact-times (map (comp c/to-long :ts) ls)]
+                (if (empty? contact-times)
+                  [0 0]
+                  [(count contact-times)
+                   (/
+                    (t/in-seconds
+                     (t/interval
+                      (:ts l)
+                      (-> (apply max contact-times)
+                          c/from-long)))
+                    3600)]))))))
+    :evolution nil
+    :unrelated))
 
 
 
@@ -297,13 +299,15 @@
 
   (def t0 (t/date-time 2015 4 5))
 
-  (def tmax (t/date-time 2015 4 15))
+  (def tmax (t/date-time 2015 4 10))
 
   (ap)
 
   (for [na (map :name news-authors)]
-    (do
-      (aprint na)
-      (aprint (compound-size na t0 tmax :statistics))))
+    (time
+     (do
+       (aprint na)
+       (aprint (size-lifetime na t0 tmax :distribution)))))
+
   
   )
