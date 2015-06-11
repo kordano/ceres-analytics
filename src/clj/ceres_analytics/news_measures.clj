@@ -294,6 +294,75 @@
     :unrelated))
 
 
+(defn size-center-degree
+  "Computes size-center-degree tuple distribution and evolution for any author's news compound"
+  [author t0 tmax granularity]
+  (case granularity
+    :distribution
+    (let [links (:links (get-user-tree author t0 tmax))]
+      (->> links
+           (pmap
+            (fn [[l ls]]
+              [(count ls)
+               (reduce
+                +
+                (map
+                 #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                 ["replies" "retweets" "shares"]))]))))
+    :evolution nil
+    :unrelated))
+
+(defn size-radius
+  "Computes size-radius tuple distribution and evolution for any author's news compound"
+  [author t0 tmax granularity]
+  (case granularity
+    :distribution
+    (let [links (:links (get-user-tree author t0 tmax))
+          lsize (count links)]
+      (->> links
+           (pmap
+            (fn [[l ls]]
+              (let [contact-times (map (comp c/to-long :ts) ls)]
+                (if (empty? contact-times)
+                  [0 0]
+                  [(count contact-times)
+                   (t/in-seconds
+                    (t/interval
+                     (:ts l)
+                     (-> (apply min contact-times)
+                         c/from-long)))]))))))
+    :evolution nil
+    :unrelated))
+
+(defn lifetime-degree
+  "Computes lifetime-degree tuple distribution and evolution for any author's news compound"
+  [author t0 tmax granularity]
+  (case granularity
+    :distribution
+    (->> (get-user-tree author t0 tmax)
+         :links 
+         (pmap
+          (fn [[l ls]]
+            (let [contact-times (map (comp c/to-long :ts) ls)]
+              (if (empty? contact-times)
+                [0 0]
+                [(/
+                  (t/in-seconds
+                   (t/interval
+                    (:ts l)
+                    (-> (apply max contact-times)
+                        c/from-long)))
+                  3600)
+                 (reduce
+                  +
+                  (map
+                   #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                   ["replies" "retweets" "shares"]))])))))
+    :evolution nil
+    :unrelated)
+  )
+
+
 
 (comment
 
