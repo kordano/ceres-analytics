@@ -425,7 +425,6 @@
 
   (time (degree t0 tmax :evolution))
 
-
   (map #(order % t0 tmax :time) contacts)
 
   )

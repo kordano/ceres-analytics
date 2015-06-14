@@ -23,8 +23,7 @@
                                                :ts ts 
                                                :group (colls coll)}
                                               t0 tmax))
-                                (mc/find-maps @db coll {:target source
-                                                        :ts {$gt t0 $lt tmax}}))))
+                                (mc/find-maps @db coll {:target source :ts {$gt t0 $lt tmax}}))))
                       (keys colls)))
           link)))
 

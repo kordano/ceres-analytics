@@ -99,9 +99,6 @@
     :unrelated))
 
 
-
-
-
 (defn temporal-radius
   "Computes temporal radius of a compound"
   [author t0 tmax granularity]
