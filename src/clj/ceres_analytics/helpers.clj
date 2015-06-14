@@ -20,9 +20,8 @@
 
 
 (def news-authors
-  (->> (mc/find-maps @db "users" {:name {$in broadcasters}})
-       (map #(select-keys % [:name :_id]))
-       (take 14)))
+  (->> (mc/find-maps @db "users" {:name {$in broadcasters} :ts {$lt (t/date-time 2015 4 1)}})
+       (map #(select-keys % [:name :_id]))))
 
 
 (def contacts ["shares" "replies" "retweets" "tagrefs" "pubs" "unknown" "sources"])
