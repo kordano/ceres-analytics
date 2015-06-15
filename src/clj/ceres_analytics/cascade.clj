@@ -28,8 +28,8 @@
           link)))
 
 
-(defn get-user-tree [username t0 tmax]
-  (let [user (mc/find-one-as-map @db "users" {:name username :ts {$lt (t/date-time 2015 4 1)}})
+(defn get-user-tree [userid t0 tmax]
+  (let [user (mc/find-one-as-map @db "users" {:id userid :ts {$lt (t/date-time 2015 4 1)}})
         user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
                                                               :ts {$gt t0 $lt tmax}})))
@@ -64,7 +64,7 @@
 
 (defn compounds [users t0 tmax]
   (zipmap (pmap :name users) 
-          (pmap #(get-user-tree (:name %) t0 tmax) users)))
+          (pmap #(get-user-tree (:id %) t0 tmax) users)))
 
 (comment
   

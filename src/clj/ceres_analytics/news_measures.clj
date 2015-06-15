@@ -215,8 +215,8 @@
 
 (defn center-degree
   "Computes the degree of the compound's origin node"
-  [author t0 tmax granularity]
-  (let [user (mc/find-one-as-map @db "users" {:name author})]
+  [author-id t0 tmax granularity]
+  (let [user (mc/find-one-as-map @db "users" {:id author-id})]
     (case granularity
       :statistics
       (->> (mc/find-maps @db "pubs" {:source (:_id user) :ts {$gt t0 $lt tmax}})

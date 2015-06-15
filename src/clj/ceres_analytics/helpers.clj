@@ -4,6 +4,7 @@
             [monger.collection :as mc]
             [monger.core :as mg]
             [clj-time.core :as t]
+            [aprint.core :refer [ap]]
             [monger.operators :refer :all]
             [monger.query :refer :all]))
 
@@ -16,11 +17,25 @@
              (mg/get-db (mg/connect sa opts) "juno"))))
 
 
-(def broadcasters #{"FAZ_NET" "dpa" "tagesschau" "SPIEGELONLINE" "SZ" "BILD" "DerWesten" "ntvde" "tazgezwitscher" "welt" "ZDFheute" "sternde" "focusonline"})
-
+(def broadcasters
+  {2834511 "SPIEGELONLINE"
+   5494392 "focusonline"
+   5734902 "tagesschau"
+   8720562 "welt"
+   9204502 "BILD"
+   15071293 "DerWesten"
+   15243812 "tazgezwitscher"
+   15738602 "N24"
+   18016521 "FAZ_NET"
+   18774524 "sternde"
+   19232587 "ntvde"
+   40227292 "dpa"
+   114508061 "SZ"
+   1101354170 "ZDFheute"})
 
 (def news-authors
-  (->> (mc/find-maps @db "users" {:name {$in broadcasters} :ts {$lt (t/date-time 2015 4 1)}})
+  (->> (mc/find-maps @db "users" {:id {$in (keys broadcaster-ids)}
+                                  :ts {$lt (t/date-time 2015 4 1)}})
        (map #(select-keys % [:name :_id]))))
 
 
@@ -28,7 +43,7 @@
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
-(defn mongo-time[t0 tmax]
+(defn mongo-time [t0 tmax]
   {:ts {$gt t0 $lt tmax}})
 
 (defn statistics [coll]
@@ -77,3 +92,15 @@
     "tags" "#2ecc40"
     :unrelated
     ))
+
+
+(comment
+  (->> (mc/find-maps @db "users" {:id {$in broadcaster-ids}
+                                  :ts {$lt (t/date-time 2015 4 1)}})
+       (map (comp (fn [[k v]] [v k]) vec vals #(select-keys % [:id :name])))
+       (into {})
+       )
+
+  (ap)
+  
+  )
