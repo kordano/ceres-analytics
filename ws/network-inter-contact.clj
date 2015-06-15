@@ -111,7 +111,7 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :days :ltncs]]
-         [:geom_line {:color "steelblue"}]
+         [:geom_line {:color "#999999"}]
          [:xlab "Day"]
          [:ylab "Average inter-contact time in seconds"]
          [:theme_bw]

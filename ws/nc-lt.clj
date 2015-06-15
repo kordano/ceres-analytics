@@ -80,7 +80,7 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :days :count]]
-         [:geom_line {:color "steelblue"}]
+         [:geom_line {:color "#999999"}]
          [:xlab "Day"]
          [:ylab "Hours"]
          [:theme_bw]

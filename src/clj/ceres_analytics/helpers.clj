@@ -9,7 +9,7 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 5 5))
+(def tmax (t/date-time 2015 4 15))
 
 (def db (atom
            (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
@@ -25,7 +25,7 @@
    9204502 "BILD"
    15071293 "DerWesten"
    15243812 "tazgezwitscher"
-   15738602 "N24"
+   ;15738602 "N24"
    18016521 "FAZ_NET"
    18774524 "sternde"
    19232587 "ntvde"
@@ -34,7 +34,7 @@
    1101354170 "ZDFheute"})
 
 (def news-authors
-  (->> (mc/find-maps @db "users" {:id {$in (keys broadcaster-ids)}
+  (->> (mc/find-maps @db "users" {:id {$in (keys broadcasters)}
                                   :ts {$lt (t/date-time 2015 4 1)}})
        (map #(select-keys % [:name :_id]))))
 
