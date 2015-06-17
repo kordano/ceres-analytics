@@ -29,7 +29,7 @@
   (map 
     (fn [[k v]] 
       (concat [(element-name k)] (format-to-table-view v))) 
-    (zipmap broadcasters (map #(temporal-radius % t0 tmax :statistics) broadcasters))) 
+    (zipmap (vals broadcasters) (map #(temporal-radius % t0 tmax :statistics) (keys broadcasters)))) 
   :columns table-columns)
 ;; @@
 ;; =>
@@ -41,8 +41,8 @@
 ;; **
 
 ;; @@
-(defn plot-radius-dist [coll]
-  (let [dat {:values (map incntr/log (remove #{0} (temporal-radius coll t0 tmax :distribution)))}]
+(defn plot-radius-dist [[id author]]
+  (let [dat {:values (map incntr/log (remove #{0} (temporal-radius id t0 tmax :distribution)))}]
     (gg4clj/view
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
@@ -52,12 +52,9 @@
          [:xlab "Minutes"]
          [:ylab "Density"]
          [:theme_bw]
-         [:ggtitle (str "Temporal radius distribution of " (element-name coll))])]
+         [:ggtitle (str "Temporal radius distribution of " (element-name author))])]
       {:width 5 :height 5})))
 ;; @@
-;; =>
-;;; {"type":"html","content":"<span class='clj-var'>#&#x27;serene-fern/plot-radius-dist</span>","value":"#'serene-fern/plot-radius-dist"}
-;; <=
 
 ;; @@
 (for [b broadcasters]
@@ -72,8 +69,8 @@
 ;; **
 
 ;; @@
-(defn plot-radius-evolution [coll]
-(let [curr (map :mean (temporal-radius coll t0 tmax :evolution))
+(defn plot-radius-evolution [[id author]]
+(let [curr (map :mean (temporal-radius id t0 tmax :evolution))
        dat {:count curr
             :days (range (count curr))}]
     (gg4clj/view
@@ -84,7 +81,7 @@
          [:xlab "Day"]
          [:ylab "Minutes"]
          [:theme_bw]
-         [:ggtitle (str "Average temporal radius evolution of " (element-name coll))])]
+         [:ggtitle (str "Average temporal radius evolution of " (element-name author))])]
       {:width 5 :height 5})))
 ;; @@
 ;; =>

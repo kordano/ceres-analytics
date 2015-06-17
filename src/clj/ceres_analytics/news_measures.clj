@@ -1,6 +1,6 @@
 (ns ceres-analytics.news-measures
   (:refer-clojure :exclude [find sort])
-  (:require [ceres-analytics.helpers :refer [news-authors contacts cascades statistics format-to-table-view db]]
+  (:require [ceres-analytics.helpers :refer [news-authors broadcasters contacts cascades statistics format-to-table-view db]]
             [ceres-analytics.cascade :refer [compounds get-user-tree]]
             [monger.collection :as mc]
             [monger.joda-time]
@@ -309,27 +309,30 @@
 
 (defn size-lifetime
   "Computes size-lifetime tuple distribution and evolution for any author's news compound"
-  [author t0 tmax granularity]
+  [authors t0 tmax granularity]
   (case granularity
     :correlation
-    (let [result  (->> (get-user-tree author t0 tmax)
-                       :links
-                       (pmap
-                        (fn [[l ls]]
-                          (let [contact-times (map (comp c/to-long :ts) ls)]
-                            (if (empty? contact-times)
-                              [0 0]
-                              [(count contact-times)
-                               (/
-                                (t/in-seconds
-                                 (t/interval
-                                  (:ts l)
-                                  (-> (apply max contact-times)
-                                      c/from-long)))
-                                3600)])))))]
+    (let [result  (->> authors
+                       (mapcat
+                        (fn [author]
+                          (->> (get-user-tree author t0 tmax)
+                               :links
+                               (pmap
+                                (fn [[l ls]]
+                                  (let [contact-times (map (comp c/to-long :ts) ls)]
+                                    (if (empty? contact-times)
+                                      [0 0]
+                                      [(count contact-times)
+                                       (/
+                                        (t/in-seconds
+                                         (t/interval
+                                          (:ts l)
+                                          (-> (apply max contact-times)
+                                              c/from-long)))
+                                        3600)]))))))))]
       (stats/correlation (map first result) (map second result)))
     :distribution
-    (let [links (:links (get-user-tree author t0 tmax))
+    (let [links (mapcat  #(get (get-user-tree (key %) t0 tmax) :links) authors)
           lsize (count links)]
       (->> links
            (pmap
@@ -345,16 +348,15 @@
                       (-> (apply max contact-times)
                           c/from-long)))
                     3600)]))))))
-    :evolution nil
     :unrelated))
 
 
 (defn size-center-degree
   "Computes size-center-degree tuple distribution and evolution for any author's news compound"
-  [author t0 tmax granularity]
+  [authors t0 tmax granularity]
   (case granularity
     :distribution
-    (let [links (:links (get-user-tree author t0 tmax))]
+    (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)]
       (->> links
            (pmap
             (fn [[l ls]]
@@ -364,15 +366,14 @@
                 (map
                  #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
                  ["replies" "retweets" "shares"]))]))))
-    :evolution nil
     :unrelated))
 
 (defn size-radius
   "Computes size-radius tuple distribution and evolution for any author's news compound"
-  [author t0 tmax granularity]
+  [authors t0 tmax granularity]
   (case granularity
     :distribution
-    (let [links (:links (get-user-tree author t0 tmax))
+    (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
           lsize (count links)]
       (->> links
            (pmap
@@ -391,11 +392,11 @@
 
 (defn lifetime-degree
   "Computes lifetime-degree tuple distribution and evolution for any author's news compound"
-  [author t0 tmax granularity]
+  [authors t0 tmax granularity]
   (case granularity
     :distribution
-    (->> (get-user-tree author t0 tmax)
-         :links 
+    (->> authors
+         (mapcat #(:links (get-user-tree (key %) t0 tmax)))
          (pmap
           (fn [[l ls]]
             (let [contact-times (map (comp c/to-long :ts) ls)]
@@ -434,5 +435,7 @@
        (aprint na)
        (aprint (count (filter #(< % 60) (map :mean (temporal-distance na t0 tmax :distribution))))))))
 
+
+  (lifetime-degree broadcasters t0 tmax :distribution)
   
   )

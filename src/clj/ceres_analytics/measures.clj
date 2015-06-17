@@ -327,16 +327,19 @@
                    frequencies
                    vals
                    statistics)
-      "messages" (->> (mapcat
-                       (fn [c]
-                         (mc/find-maps @db c
-                                       (merge {:target {$ne nil}}
-                                              (mongo-time t0 tmax))))
-                       cascades)
-                      (map :target)
-                      frequencies
-                      vals
-                      statistics)
+      "messages"
+      (let [non-zero-degrees (->> (mapcat
+                                   (fn [c]
+                                     (mc/find-maps @db c
+                                                   (merge {:target {$ne nil}}
+                                                          (mongo-time t0 tmax))))
+                                   cascades)
+                                  (map :target)
+                                  frequencies
+                                  vals)
+            overall-count (reduce + (map (fn [c] (mc/count @db c (merge (mongo-time t0 tmax)))) cascades))
+            zero-count (repeat (- overall-count (count non-zero-degrees)) 0)]
+        (statistics (concat non-zero-degrees zero-count)))
       "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
                   (map :target)
                   frequencies
@@ -349,15 +352,14 @@
                    (map :source)
                    frequencies
                    vals)
-      "messages" (->> (mapcat
-                       (fn [c]
-                         (mc/find-maps @db c
-                                       (merge {:target {$ne nil}}
-                                              (mongo-time t0 tmax))))
-                       cascades)
-                      (map :target)
-                      frequencies
-                      vals)
+      "messages" (let [non-zero-degrees (->> (mapcat (fn [c] (mc/find-maps @db c (merge {:target {$ne nil}} (mongo-time t0 tmax)))) cascades)
+                                             (map :target)
+                                             frequencies
+                                             vals
+                                             (map inc))
+                       overall-count (reduce + (map (fn [c] (mc/count @db c (merge (mongo-time t0 tmax)))) cascades))
+                       zero-count (repeat (- overall-count (count non-zero-degrees)) 1)]
+                   (concat non-zero-degrees zero-count))
       "tags" (->> (mc/find-maps @db "tagrefs" (mongo-time t0 tmax))
                   (map :source)
                   frequencies
@@ -375,19 +377,28 @@
                              frequencies
                              vals
                              statistics))))
-        "messages" (->> day-range
-                        (pmap
-                         (fn [d]
-                           (->> cascades
-                                (mapcat
+        "messages"
+        (->> day-range
+             (pmap
+              (fn [d]
+                (let [non-zero-degrees
+                      (->> (mapcat
+                            (fn [c]
+                              (mc/find-maps @db c (merge {:target {$ne nil}}
+                                                         (mongo-time t0
+                                                                     (t/plus t0 (t/days (inc d)))))))
+                            cascades)
+                           (map :target)
+                           frequencies
+                           vals)
+                      overall-count
+                      (reduce + (map
                                  (fn [c]
-                                   (mc/find-maps @db c (merge {:target {$ne nil}}
-                                                              (mongo-time t0
-                                                                          (t/plus t0 (t/days (inc d))))))))
-                                (map :target)
-                                frequencies
-                                vals
-                                statistics))))
+                                   (mc/count @db c
+                                             (merge (mongo-time t0 tmax))))
+                                 cascades))
+                      zero-count (repeat (- overall-count (count non-zero-degrees)) 0)]
+                  (statistics (concat non-zero-degrees zero-count))))))
         "tags" (->> day-range
                     (pmap
                      (fn [d]

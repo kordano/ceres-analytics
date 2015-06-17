@@ -1,8 +1,8 @@
 (ns ceres-analytics.helpers
   (:refer-clojure :exclude [find sort])
   (:require [incanter.stats :as stats]
-            [monger.collection :as mc]
             [monger.core :as mg]
+            [monger.collection :as mc]
             [clj-time.core :as t]
             [aprint.core :refer [ap]]
             [monger.operators :refer :all]
@@ -15,7 +15,6 @@
            (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
                  ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
              (mg/get-db (mg/connect sa opts) "juno"))))
-
 
 (def broadcasters
   {2834511 "SPIEGELONLINE"
@@ -95,11 +94,11 @@
 
 
 (comment
-  (->> (mc/find-maps @db "users" {:id {$in broadcaster-ids}
+  
+  (->> (mc/find-maps @db "users" {:id {$in (keys broadcasters)}
                                   :ts {$lt (t/date-time 2015 4 1)}})
        (map (comp (fn [[k v]] [v k]) vec vals #(select-keys % [:id :name])))
-       (into {})
-       )
+       (into {}))
 
   (ap)
   

@@ -29,7 +29,7 @@
   (map 
     (fn [[k v]] 
       (concat [(element-name k)] (format-to-table-view v))) 
-    (zipmap broadcasters (map #(center-degree % t0 tmax :statistics) broadcasters))) 
+    (zipmap (vals broadcasters) (map #(center-degree % t0 tmax :statistics) (keys broadcasters)))) 
   :columns table-columns)
 ;; @@
 ;; =>
@@ -41,8 +41,8 @@
 ;; **
 
 ;; @@
-(defn plot-dg-dist [coll]
-  (let [curr (center-degree coll t0 tmax :distribution)
+(defn plot-dg-dist [[id coll]]
+  (let [curr (center-degree id t0 tmax :distribution)
          dat {:xs (map first curr)
               :ys (map second curr)}]
     (gg4clj/view
@@ -81,8 +81,8 @@
 ;; **
 
 ;; @@
-(defn plot-dg-evolution [coll]
-(let [result (center-degree coll t0 tmax :evolution)
+(defn plot-dg-evolution [[id coll]]
+(let [result (center-degree id t0 tmax :evolution)
        dat {:count (map :mean result)
             :days (range (count result))}]
     (gg4clj/view

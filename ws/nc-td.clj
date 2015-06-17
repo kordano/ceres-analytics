@@ -29,7 +29,7 @@
   (map 
     (fn [[k v]] 
       (concat [(element-name k)] (format-to-table-view v))) 
-    (zipmap broadcasters (map #(temporal-distance % t0 tmax :statistics) broadcasters))) 
+    (zipmap (vals broadcasters) (map #(temporal-distance % t0 tmax :statistics) (keys broadcasters)))) 
   :columns table-columns)
 ;; @@
 ;; =>
@@ -41,8 +41,8 @@
 ;; **
 
 ;; @@
-(defn plot-td-dist [coll]
-(let [dat {:counts (map (comp incntr/log :mean) (temporal-distance coll t0 tmax :distribution))}]
+(defn plot-td-dist [[id author]]
+(let [dat {:counts (map (comp incntr/log :mean) (temporal-distance id t0 tmax :distribution))}]
     (gg4clj/view
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
@@ -52,12 +52,9 @@
          [:xlab "e^x Minutes"]
          [:ylab "Density"]
          [:theme_bw]
-         [:ggtitle (str "Average temporal distance distribution of " (element-name coll))])]
+         [:ggtitle (str "Average temporal distance distribution of " (element-name author))])]
       {:width 5 :height 5})))
 ;; @@
-;; =>
-;;; {"type":"html","content":"<span class='clj-var'>#&#x27;mellow-pond/plot-td-dist</span>","value":"#'mellow-pond/plot-td-dist"}
-;; <=
 
 ;; @@
 (for [b broadcasters]
@@ -72,7 +69,7 @@
 ;; **
 
 ;; @@
-(defn plot-td-evolution [coll]
+(defn plot-td-evolution [[id author]]
 (let [curr (map :mean (temporal-distance coll t0 tmax :evolution))
        dat {:count curr
             :days (range (count curr))}]
