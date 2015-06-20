@@ -30,8 +30,7 @@
           lsize (count links)]
       (->> links
            (pmap (comp count second))
-           frequencies
-           (pmap (fn [[k v]] [k (/ v lsize)]))))
+           ))
     :evolution
     (->> (t/interval t0 tmax)
          t/in-days
@@ -242,9 +241,7 @@
                  +
                  (map
                   #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
-                  ["replies" "retweets" "shares"]))))
-             frequencies
-             (map (fn [[k v]] [k (/ v pcount)]))))
+                  ["replies" "retweets" "shares"]))))))
       
       :evolution
       (->> (t/interval t0 tmax)
@@ -277,7 +274,7 @@
           (fn [[l ls]]
             (if (empty? ls)
               nil
-              (stats/mean (pmap #(t/in-seconds (t/interval (:ts l) (:ts %))) ls)))))
+              (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
          (remove nil?)
          statistics)
     :distribution
