@@ -102,7 +102,7 @@
        (gg4clj/r+
          [:ggplot :d [:aes {:x :bcs :y :values :fill :fraction}]]
          [:geom_bar {:stat "identity" :position [:position_dodge]}]
-         [:scale_fill_manual {:values [:c "#E69F00" "#999999"]}]
+         [:scale_fill_manual {:values [:c "#FFFFFF" "#999999"]}]
          [:xlab "Broadcaster"]
          [:ylab "Count"]
          [:theme_bw]
