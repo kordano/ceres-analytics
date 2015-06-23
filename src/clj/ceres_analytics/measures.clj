@@ -258,7 +258,7 @@
          (pmap
           (fn [{:keys [target ts]}]
             (if-let [target-ts (:ts (mc/find-map-by-id @db "messages" target))]
-              (t/in-seconds (t/interval target-ts ts))
+              (/ (t/in-seconds (t/interval target-ts ts)) 3600)
               nil)))
          (remove nil?))
     :evolution
