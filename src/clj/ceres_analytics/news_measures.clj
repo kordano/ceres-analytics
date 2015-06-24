@@ -29,8 +29,7 @@
     (let [links (:links (get-user-tree author t0 tmax))
           lsize (count links)]
       (->> links
-           (pmap (comp count second))
-           ))
+           (pmap (comp count second))))
     :evolution
     (->> (t/interval t0 tmax)
          t/in-days
@@ -128,8 +127,7 @@
                                   (:ts l)
                                   (->> contact-times (apply min) c/from-long)))
                    60)))))
-         (remove nil?)
-         )
+         (remove nil?))
     :evolution
     (->> (t/interval t0 tmax)
          t/in-days
@@ -376,11 +374,12 @@
                 (if (empty? contact-times)
                   [0 0]
                   [(count contact-times)
-                   (t/in-seconds
-                    (t/interval
-                     (:ts l)
-                     (-> (apply min contact-times)
-                         c/from-long)))]))))))
+                   (/ (t/in-seconds
+                       (t/interval
+                        (:ts l)
+                        (-> (apply min contact-times)
+                            c/from-long)))
+                      60)]))))))
     :evolution nil
     :unrelated))
 

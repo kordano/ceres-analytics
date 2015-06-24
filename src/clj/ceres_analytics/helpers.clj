@@ -9,7 +9,7 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 4 10))
+(def tmax (t/date-time 2015 4 15))
 
 (def db
   (atom
@@ -26,12 +26,12 @@
    15071293 "Westen"
    15243812 "TAZ"
    ;15738602 "N24"
-   18016521 "FAZT"
+   18016521 "FAZ"
    18774524 "Stern"
    19232587 "ntv"
    40227292 "dpa"
    114508061 "SZ"
-   1101354170 "ZDF Heute"})
+   1101354170 "ZDF"})
 
 (def news-authors
   (->> (mc/find-maps @db "users" {:id {$in (keys broadcasters)}
