@@ -9,28 +9,29 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 5 5))
+(def tmax (t/date-time 2015 4 10))
 
-(def db (atom
-           (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
-                 ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
-             (mg/get-db (mg/connect sa opts) "juno"))))
+(def db
+  (atom
+   (let [^MongoOptions opts (mg/mongo-options {:threads-allowed-to-block-for-connection-multiplier 300})
+         ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
+     (mg/get-db (mg/connect sa opts) "juno"))))
 
 (def broadcasters
-  {2834511 "SPIEGELONLINE"
-   5494392 "focusonline"
-   5734902 "tagesschau"
-   8720562 "welt"
-   9204502 "BILD"
-   15071293 "DerWesten"
-   15243812 "tazgezwitscher"
+  {2834511 "Spiegel"
+   5494392 "Focus"
+   5734902 "Tagesschau"
+   8720562 "Welt"
+   9204502 "Bild"
+   15071293 "Westen"
+   15243812 "TAZ"
    ;15738602 "N24"
-   18016521 "FAZ_NET"
-   18774524 "sternde"
-   19232587 "ntvde"
+   18016521 "FAZT"
+   18774524 "Stern"
+   19232587 "ntv"
    40227292 "dpa"
    114508061 "SZ"
-   1101354170 "ZDFheute"})
+   1101354170 "ZDF Heute"})
 
 (def news-authors
   (->> (mc/find-maps @db "users" {:id {$in (keys broadcasters)}
@@ -42,8 +43,7 @@
 (def cascades ["shares" "replies" "retweets"])
 (def nodes ["users" "messages" "tags"])
 
-(defn mongo-time [t0 tmax]
-  {:ts {$gt t0 $lt tmax}})
+(defn mongo-time [t0 tmax] {:ts {$gt t0 $lt tmax}})
 
 (defn statistics [coll]
   (let [percentiles {:q0 0 :q50 0.5 :q100 1 :q95 0.95}
@@ -54,7 +54,6 @@
             :sd (stats/sd coll)})))
 
 
-
 (defn format-to-table-view
   "Formats statistics to mean, sd, median, minimum, maximum"
   [{:keys [count mean sd q0 q50 q100 q95]}]
@@ -62,6 +61,7 @@
 
 
 (def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "95 Percentile" "Count"])
+
 
 (defn element-name [e]
   (case e
@@ -75,8 +75,8 @@
     "messages" "Message"
     "tags" "Topic"
     "sources" "Article"
-    e
-    ))
+    e))
+
 
 (defn element-color [e]
   (case e
@@ -89,8 +89,7 @@
     "users" "#39cccc"
     "messages" "#111111"
     "tags" "#2ecc40"
-    :unrelated
-    ))
+    :unrelated))
 
 
 (comment
@@ -100,6 +99,4 @@
        (map (comp (fn [[k v]] [v k]) vec vals #(select-keys % [:id :name])))
        (into {}))
 
-  (ap)
-  
-  )
+  (ap))

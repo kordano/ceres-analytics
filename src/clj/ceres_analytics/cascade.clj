@@ -11,7 +11,9 @@
 
 
 
-(defn find-links [{:keys [source target group ts] :as link} t0 tmax]
+(defn find-links
+  "Retrieve all neighbors of given contact"
+  [{:keys [source target group ts] :as link} t0 tmax]
   (let [colls {"replies" 3 "retweets" 4 "shares" 5}]
     (conj (apply concat
                  (pmap (fn [coll]
@@ -28,7 +30,9 @@
           link)))
 
 
-(defn get-user-tree [userid t0 tmax]
+(defn get-user-tree
+  "Create user reaction tree"
+  [userid t0 tmax]
   (let [user (mc/find-one-as-map @db "users" {:id userid :ts {$lt (t/date-time 2015 4 1)}})
         user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
@@ -60,29 +64,3 @@
                   #_(comp #(mapv (comp (fn [l] (update-in l [:source] str))
                                        (fn [l] (update-in l [:target] str))) %))) 
                  vec)}))
-
-
-(defn compounds [users t0 tmax]
-  (zipmap (pmap :name users) 
-          (pmap #(get-user-tree (:id %) t0 tmax) users)))
-
-(comment
-  
-  (->> (mc/find-maps @db "tagrefs" {:ts {$gt (t/date-time 2015 4 5)
-                                         $lt (t/date-time 2015 5 5)}})
-       (map :target)
-       frequencies
-       (sort-by val >)
-       (take 20)
-       (map (fn [[k v]] [(:text (mc/find-map-by-id @db "tags" k)) v])))
-
-  (def t0 (t/date-time 2015 4 5))
-  
-  (def tmax (t/date-time 2015 4 15))
-  
-  (get-user-tree "SZ" t0 tmax)
-  
-  (ap)
-
-  )
- 

@@ -1,7 +1,7 @@
 (ns ceres-analytics.news-measures
   (:refer-clojure :exclude [find sort])
   (:require [ceres-analytics.helpers :refer [news-authors broadcasters contacts cascades statistics format-to-table-view db]]
-            [ceres-analytics.cascade :refer [compounds get-user-tree]]
+            [ceres-analytics.cascade :refer [get-user-tree]]
             [monger.collection :as mc]
             [monger.joda-time]
             [incanter.stats :as stats]
@@ -151,9 +151,6 @@
     :unrelated))
 
 
-
-
-
 (defn lifetime
   "Compute lifetime of a compound"
   [author t0 tmax granularity]
@@ -263,7 +260,7 @@
       :unrelated)))
 
 
-(defn temporal-distance
+(defn delays
   "Compute average temporal distance for each compound"
   [author t0 tmax granularity]
   (case granularity
@@ -430,7 +427,7 @@
     (time
      (do
        (aprint na)
-       (aprint (count (filter #(< % 60) (map :mean (temporal-distance na t0 tmax :distribution))))))))
+       (aprint (count (filter #(< % 60) (map :mean (delays na t0 tmax :distribution))))))))
 
 
   (lifetime-degree broadcasters t0 tmax :distribution)

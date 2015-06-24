@@ -1,0 +1,20 @@
+#+TITLE: ceres-analytics
+#+CATEGORY: ceres-analytics
+#+TAGS: review bug feature research 
+#+TODO: TODO(t) STARTED(s!) | FIXED(f!) DONE(d!) 
+#+TODO: CANCELED(c@)
+#+STARTUP: overview 
+#+STARTUP: hidestars
+
+**** Usage
+
+Not sure yet.
+
+**** TODOs
+
+**** License
+
+Copyright © 2015 Konrad Kühne
+
+Distributed under the Eclipse Public License either version 1.0 or (at
+your option) any later version.
