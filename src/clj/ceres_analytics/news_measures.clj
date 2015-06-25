@@ -269,7 +269,7 @@
           (fn [[l ls]]
             (if (empty? ls)
               nil
-              (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
+              (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls)))))
          (remove nil?)
          statistics)
     :distribution
@@ -279,7 +279,7 @@
           (fn [[l ls]]
             (if (empty? ls)
               nil
-              (statistics (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
+              (statistics (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls)))))
          (remove nil?))
     :evolution
     (->> (t/interval t0 tmax)
@@ -293,7 +293,7 @@
                   (fn [[l ls]]
                     (if (empty? ls)
                       nil
-                      (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 3600) ls)))))
+                      (stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls)))))
                  (remove nil?)
                  statistics))))
     :unrelated))
