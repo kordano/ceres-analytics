@@ -9,7 +9,7 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 4 15))
+(def tmax (t/date-time 2015 5 5))
 
 (def db
   (atom
