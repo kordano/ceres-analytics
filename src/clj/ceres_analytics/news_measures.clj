@@ -52,7 +52,7 @@
          (pmap
           (fn [[l ls]]
             (let [node-times (map (comp c/to-long :ts) ls)]
-              (if (empty? node-times)
+              (if (< (count node-times) 2)
                 nil
                 (/ (->> (t/interval
                          (c/from-long (apply min node-times))
@@ -67,7 +67,7 @@
          (pmap
           (fn [[l ls]]
             (let [node-times (map (comp c/to-long :ts) ls)]
-              (if (empty? node-times)
+              (if (< (count node-times) 2)
                 nil
                 (/ (->> (t/interval
                          (c/from-long (apply min node-times))
@@ -85,12 +85,12 @@
                 (pmap
                  (fn [[l ls]]
                    (let [node-times (map (comp c/to-long :ts) ls)]
-                     (if (empty? node-times)
+                     (if (< (count node-times) 2)
                        nil
                        (/ (->> (t/interval
-                              (c/from-long (apply min node-times))
-                              (c/from-long (apply max node-times)))
-                             t/in-seconds)
+                                (c/from-long (apply min node-times))
+                                (c/from-long (apply max node-times)))
+                               t/in-seconds)
                           3600)))))
                 (remove nil?)
                 statistics)))
