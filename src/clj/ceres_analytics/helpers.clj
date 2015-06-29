@@ -50,14 +50,15 @@
         quantiles (zipmap (keys percentiles) (stats/quantile coll :probs (vals percentiles)))]
     (merge quantiles
            {:mean (stats/mean coll)
+            :variance (stats/variance coll)
             :count (count coll)
             :sd (stats/sd coll)})))
 
 
 (defn format-to-table-view
   "Formats statistics to mean, sd, median, minimum, maximum"
-  [{:keys [count mean sd q0 q50 q100 q95]}]
-  [mean sd q50 q0 q100 q95 count])
+  [{:keys [count mean sd q0 q50 q100 q95 variance]}]
+  [mean sd variance q0 q50 q100 q95 count])
 
 
 (def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "95 Percentile" "Count"])
