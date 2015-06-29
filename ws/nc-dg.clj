@@ -104,7 +104,7 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :days :count]]
-         [:geom_line {:color "#999999"}]
+         [:geom_line {:color "#222222"}]
          [:xlab "Day"]
          [:ylab "Degree"]
          [:theme_bw]

@@ -50,7 +50,7 @@
          [:scale_y_log10]
          [:guides {:fill "none"}]
          [:xlab "Broadcaster"]
-         [:ylab "Hour"]
+         [:ylab "Temporal diameter in hours"]
          [:theme_bw]
          [:ggtitle "Average temporal diameter"])]
       {:width 12 :height 6 })) 
@@ -99,9 +99,9 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :days :count]]
-         [:geom_line {:color "#999999"}]
+         [:geom_line {:color "#222222"}]
          [:xlab "Day"]
-         [:ylab "Diameter in hours"]
+         [:ylab "Temporal diameter in hours"]
          [:theme_bw]
          [:ggtitle "Average diameter evolution"])]
       {:width 5 :height 5}))

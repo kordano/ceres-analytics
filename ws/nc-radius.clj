@@ -54,7 +54,7 @@
          [:scale_y_log10]
          [:guides {:fill "none"}]
          [:xlab "Broadcaster"]
-         [:ylab "Hour"]
+         [:ylab "Temporal radius in minutes"]
          [:theme_bw]
          [:ggtitle "Average temporal radius"])]
       {:width 12 :height 6 })) 
@@ -84,9 +84,9 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :days :count]]
-         [:geom_line {:color "#999999"}]
+         [:geom_line {:color "#222222"}]
          [:xlab "Day"]
-         [:ylab "Degree"]
+         [:ylab "Temporal radius in minutes"]
          [:theme_bw]
          [:ggtitle "Average temporal radius evolution"])]
       {:width 5 :height 5}))
