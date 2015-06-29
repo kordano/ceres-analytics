@@ -307,7 +307,7 @@
     (let [result  (->> authors
                        (mapcat
                         (fn [author]
-                          (->> (get-user-tree author t0 tmax)
+                          (->> (get-user-tree (key author) t0 tmax)
                                :links
                                (pmap
                                 (fn [[l ls]]
@@ -364,6 +364,24 @@
   "Computes size-radius tuple distribution and evolution for any author's news compound"
   [authors t0 tmax granularity]
   (case granularity
+    :correlation
+    (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
+          lsize (count links)
+          result
+          (->> links
+               (pmap
+                (fn [[l ls]]
+                  (let [contact-times (map (comp c/to-long :ts) ls)]
+                    (if (empty? contact-times)
+                      [0 0]
+                      [(count contact-times)
+                       (/ (t/in-seconds
+                           (t/interval
+                            (:ts l)
+                            (-> (apply min contact-times)
+                                c/from-long)))
+                          60)])))))]
+      (stats/correlation (map first result) (map second result)))
     :distribution
     (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
           lsize (count links)]
@@ -430,5 +448,10 @@
 
 
   (lifetime-degree broadcasters t0 tmax :distribution)
+  
+  (size-lifetime broadcasters t0 tmax :correlation)
+  
+  (size-radius broadcasters t0 tmax :correlation)
+
   
   )
