@@ -7,7 +7,7 @@
 ;; **
 
 ;; @@
-(ns merciful-ocean
+ü(ns merciful-ocean
    (:require [gorilla-plot.core :as plot]
             [gorilla-repl.table :as table]
             [gg4clj.core :as gg4clj]
@@ -101,9 +101,9 @@
          [:ggplot :d [:aes :days :count]]
          [:geom_line {:color "#999999"}]
          [:xlab "Day"]
-         [:ylab "Degree"]
+         [:ylab "Diameter in hours"]
          [:theme_bw]
-         [:ggtitle "Average center degree evolution"])]
+         [:ggtitle "Average diameter evolution"])]
       {:width 5 :height 5}))
 ;; @@
 ;; =>

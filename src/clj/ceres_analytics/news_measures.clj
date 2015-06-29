@@ -322,7 +322,7 @@
                                           (-> (apply max contact-times)
                                               c/from-long)))
                                         3600)]))))))))]
-      (stats/correlation (map first result) (map second result)))
+      (stats/correlation (map second result) (map first result)))
     :distribution
     (let [links (mapcat  #(get (get-user-tree (key %) t0 tmax) :links) authors)
           lsize (count links)]
@@ -347,6 +347,18 @@
   "Computes size-center-degree tuple distribution and evolution for any author's news compound"
   [authors t0 tmax granularity]
   (case granularity
+    :orrelation
+    (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
+          result (->> links
+                      (pmap
+                       (fn [[l ls]]
+                         [(count ls)
+                          (reduce
+                           +
+                           (map
+                            #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                            ["replies" "retweets" "shares"]))])))]
+      (stats/correlation (map first result) (map second result)))
     :distribution
     (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)]
       (->> links
@@ -405,6 +417,27 @@
   "Computes lifetime-degree tuple distribution and evolution for any author's news compound"
   [authors t0 tmax granularity]
   (case granularity
+    :correlation
+    (let [result (->> authors
+                      (mapcat #(:links (get-user-tree (key %) t0 tmax)))
+                      (pmap
+                       (fn [[l ls]]
+                         (let [contact-times (map (comp c/to-long :ts) ls)]
+                           (if (empty? contact-times)
+                             [0 0]
+                             [(/
+                               (t/in-seconds
+                                (t/interval
+                                 (:ts l)
+                                 (-> (apply max contact-times)
+                                     c/from-long)))
+                               3600)
+                              (reduce
+                               +
+                               (map
+                                #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                                ["replies" "retweets" "shares"]))])))))]
+      (stats/correlation (map first result) (map second result)))
     :distribution
     (->> authors
          (mapcat #(:links (get-user-tree (key %) t0 tmax)))
@@ -429,7 +462,70 @@
     :unrelated))
 
 
+(defn delays-size
+  "Computes correlation between delay and size of all news compound"
+  [authors t0 tmax granularity]
+  (case granularity
+    :correlation
+    (let [result (->> authors
+                      (map #(get-user-tree (key %) t0 tmax))
+                      (mapcat :links) 
+                      (pmap
+                       (fn [[l ls]]
+                         (if (empty? ls)
+                           nil
+                           [(stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls))
+                            (count ls)])))
+                      (remove nil?))]
+      (stats/correlation (map first result) (map second result)))
+    :distribution
+    (->> authors
+         (map #(get-user-tree (key %) t0 tmax))
+         (mapcat :links) 
+         (pmap
+          (fn [[l ls]]
+            (if (empty? ls)
+              nil
+              [(stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls))
+               (count ls)
+               ])))
+         (remove nil?))
+    :unrelated))
 
+(defn delays-center-degree
+  "Computes correlation between delay and center degree of all news compound"
+  [authors t0 tmax granularity]
+  (case granularity
+    :correlation
+    (let [result (->> authors
+                      (map #(get-user-tree (key %) t0 tmax))
+                      (mapcat :links) 
+                      (pmap
+                       (fn [[l ls]]
+                         (if (empty? ls)
+                           nil
+                           [(stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls))
+                            (reduce + (map
+                                       #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                                       ["replies" "retweets" "shares"]))])))
+                      (remove nil?))]
+      (stats/correlation (map first result) (map second result)))
+    :distribution
+    (->> authors
+         (map #(get-user-tree (key %) t0 tmax))
+         (mapcat :links) 
+         (pmap
+          (fn [[l ls]]
+            (if (empty? ls)
+              nil
+              [(stats/mean (pmap #(/ (t/in-seconds (t/interval (:ts l) (:ts %))) 60) ls))
+               (reduce
+                +
+                (map
+                 #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
+                 ["replies" "retweets" "shares"]))])))
+         (remove nil?))
+    :unrelated))
 
 
 (comment
@@ -451,7 +547,7 @@
   
   (size-lifetime broadcasters t0 tmax :correlation)
   
-  (size-radius broadcasters t0 tmax :correlation)
+  (delays-center-degree broadcasters t0 tmax :correlation)
 
   
   )

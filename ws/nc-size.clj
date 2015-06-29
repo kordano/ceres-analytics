@@ -93,7 +93,7 @@
 (let [curr (map #(compound-size (key %) t0 tmax :fractions) broadcasters)
        dat {:values (concat (map :zero curr) (map :overall curr))
             :fraction (concat (repeat (count broadcasters) "No response")
-                              (repeat (count broadcasters) "Overall"))
+                              (repeat (count broadcasters) "All Messages"))
            :bcs (vals broadcasters)}]
     (gg4clj/view
       [[:<- :d (gg4clj/data-frame dat)]

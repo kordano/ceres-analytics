@@ -102,7 +102,7 @@
          [:ggplot :d [:aes :days :count]]
          [:geom_line {:color "#999999"}]
          [:xlab "Day"]
-         [:ylab "Hours"]
+         [:ylab "Minutes"]
          [:theme_bw]
          [:ggtitle "Average temporal distance evolution"])]
       {:width 5 :height 5}))
