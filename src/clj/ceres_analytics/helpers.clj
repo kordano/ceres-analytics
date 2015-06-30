@@ -58,10 +58,10 @@
 (defn format-to-table-view
   "Formats statistics to mean, sd, median, minimum, maximum"
   [{:keys [count mean sd q0 q50 q100 q95 variance]}]
-  [mean sd variance q0 q50 q100 q95 count])
+  [mean q50 sd variance q0 q100 q95 count])
 
 
-(def table-columns ["Subclass" "Average" "Standard Deviation" "Median" "Minimum" "Maximum" "95 Percentile" "Count"])
+(def table-columns ["Subclass" "Average" "Median" "Standard Deviation" "Variance" "Minimum" "Maximum" "95 Percentile" "Count"])
 
 
 (defn element-name [e]
