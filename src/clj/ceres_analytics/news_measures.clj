@@ -347,7 +347,7 @@
   "Computes size-center-degree tuple distribution and evolution for any author's news compound"
   [authors t0 tmax granularity]
   (case granularity
-    :orrelation
+    :correlation
     (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
           result (->> links
                       (pmap
@@ -410,7 +410,6 @@
                         (-> (apply min contact-times)
                             c/from-long)))
                       60)]))))))
-    :evolution nil
     :unrelated))
 
 (defn lifetime-degree
@@ -458,7 +457,6 @@
                   (map
                    #(mc/count @db % {:target (:source l)  :ts {$gt t0 $lt tmax}})
                    ["replies" "retweets" "shares"]))])))))
-    :evolution nil
     :unrelated))
 
 
