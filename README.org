@@ -12,7 +12,7 @@ Not sure yet.
 
 **** TODOs
 **** TODO add links to worksheets if possible			    :feature:
-    DEADLINE: <2015-06-30 Di>
+    DEADLINE: <2015-07-13 Mo>
     :PROPERTIES:
     :Created: [2015-06-25 Do 17:43]
     :Assigned_to: kordano

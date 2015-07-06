@@ -410,7 +410,7 @@
 ;; @@
 (table/table-view
   [(format-to-table-view (density nodes contacts t0 tmax :hourly))]
-   :columns  ["Average" "Standard Deviation" "Variance" "Median" "Minimum" "Maximum" "Count"])
+   :columns  ["Average" "Standard Deviation" "Variance" "Median" "Minimum" "Maximum" "0.95-Percentile" "Count"])
 ;; @@
 ;; =>
 ;;; {"type":"list-like","open":"<center><table>","close":"</table></center>","separator":"\n","items":[{"type":"list-like","open":"<tr><th>","close":"</th></tr>","separator":"</th><th>","items":[{"type":"html","content":"<span class='clj-string'>&quot;Average&quot;</span>","value":"\"Average\""},{"type":"html","content":"<span class='clj-string'>&quot;Standard Deviation&quot;</span>","value":"\"Standard Deviation\""},{"type":"html","content":"<span class='clj-string'>&quot;Median&quot;</span>","value":"\"Median\""},{"type":"html","content":"<span class='clj-string'>&quot;Minimum&quot;</span>","value":"\"Minimum\""},{"type":"html","content":"<span class='clj-string'>&quot;Maximum&quot;</span>","value":"\"Maximum\""},{"type":"html","content":"<span class='clj-string'>&quot;Count&quot;</span>","value":"\"Count\""}],"value":"[\"Average\" \"Standard Deviation\" \"Median\" \"Minimum\" \"Maximum\" \"Count\"]"},{"type":"list-like","open":"<tr><td>","close":"</td></tr>","separator":"</td><td>","items":[{"type":"html","content":"<span class='clj-double'>0.009282617564410126</span>","value":"0.009282617564410126"},{"type":"html","content":"<span class='clj-double'>0.01091453523091831</span>","value":"0.01091453523091831"},{"type":"html","content":"<span class='clj-double'>1.1912707930695701E-4</span>","value":"1.1912707930695701E-4"},{"type":"html","content":"<span class='clj-double'>2.2543605882674456E-4</span>","value":"2.2543605882674456E-4"},{"type":"html","content":"<span class='clj-double'>0.0037566638784483075</span>","value":"0.0037566638784483075"},{"type":"html","content":"<span class='clj-double'>0.06330014020204544</span>","value":"0.06330014020204544"},{"type":"html","content":"<span class='clj-double'>0.034208256937563415</span>","value":"0.034208256937563415"},{"type":"html","content":"<span class='clj-unkown'>720</span>","value":"720"}],"value":"[0.009282617564410126 0.01091453523091831 1.1912707930695701E-4 2.2543605882674456E-4 0.0037566638784483075 0.06330014020204544 0.034208256937563415 720]"}],"value":"#gorilla_repl.table.TableView{:contents [[0.009282617564410126 0.01091453523091831 1.1912707930695701E-4 2.2543605882674456E-4 0.0037566638784483075 0.06330014020204544 0.034208256937563415 720]], :opts (:columns [\"Average\" \"Standard Deviation\" \"Median\" \"Minimum\" \"Maximum\" \"Count\"])}"}
@@ -456,9 +456,9 @@
       [[:<- :d (gg4clj/data-frame dat)]
        (gg4clj/r+
          [:ggplot :d [:aes :time :count]]
-         [:geom_errorbar [:aes {:ymin :semin :ymax :semax }] {:width 0.68 :color "darkgrey"}]
-         [:geom_line {:stat "identity" :color "steelblue"}]
-         [:geom_point {:color "steelblue"}]
+         [:geom_errorbar [:aes {:ymin :semin :ymax :semax }] {:width 0.68 :color "#222222"}]
+         [:geom_line {:stat "identity" :color "#222222"}]
+         [:geom_point {:color "#222222"}]
          [:xlab "Time of day"]
          [:ylab "Average Density"]
          [:theme_bw]
