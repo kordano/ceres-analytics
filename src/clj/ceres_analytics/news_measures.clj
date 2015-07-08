@@ -252,7 +252,7 @@
                       (reduce
                        +
                        (map
-                        #(mc/count @db % {:target id :ts {$gt t0 $lt tmax}})
+                        #(mc/count @db % {:target id :ts {$gt t0 $lt (t/plus t0 (t/days (inc d)))}})
                         ["replies" "retweets" "shares"]))))
                    statistics))))
       :unrelated)))
@@ -546,6 +546,5 @@
   (size-lifetime broadcasters t0 tmax :correlation)
   
   (delays-center-degree broadcasters t0 tmax :correlation)
-
   
   )
