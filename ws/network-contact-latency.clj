@@ -77,7 +77,7 @@
          [:xlab "Seconds"]
          [:ylab "Density"]
          [:theme_bw]
-         [:ggtitle (str "Latency Histogram of " (element-name coll))])]
+         [:ggtitle (str (element-name coll) " latency histogram" )])]
       {:width 5 :height 5})) )
 ;; @@
 ;; =>
