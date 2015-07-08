@@ -393,7 +393,7 @@
                             (-> (apply min contact-times)
                                 c/from-long)))
                           60)])))))]
-      (stats/correlation (map first result) (map second result)))
+      (stats/correlation (map second result) (map first result)))
     :distribution
     (let [links (mapcat #(:links (get-user-tree (key %) t0 tmax)) authors)
           lsize (count links)]
