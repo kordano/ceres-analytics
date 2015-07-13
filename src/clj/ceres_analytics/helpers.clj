@@ -9,7 +9,7 @@
             [monger.query :refer :all]))
 
 (def t0 (t/date-time 2015 4 5))
-(def tmax (t/date-time 2015 5 5))
+(def tmax (t/date-time 2015 4 25))
 
 (def db
   (atom
@@ -91,13 +91,3 @@
     "messages" "#111111"
     "tags" "#2ecc40"
     :unrelated))
-
-
-(comment
-  
-  (->> (mc/find-maps @db "users" {:id {$in (keys broadcasters)}
-                                  :ts {$lt (t/date-time 2015 4 1)}})
-       (map (comp (fn [[k v]] [v k]) vec vals #(select-keys % [:id :name])))
-       (into {}))
-
-  (ap))

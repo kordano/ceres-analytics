@@ -334,7 +334,7 @@
          [:geom_line]
          [:geom_point]
          [:xlab "Day"]
-         [:ylab "Count"]
+         [:ylab "Fraction"]
          [:theme_bw]
          [:ggtitle "total daily expansion"])]
       {:width 7 :height 6})))
