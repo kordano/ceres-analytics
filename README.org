@@ -11,13 +11,13 @@
 Not sure yet.
 
 **** TODOs
-**** TODO add stop to frontend visualization			    :feature:
+***** TODO add stop to frontend visualization 			    :feature:
     DEADLINE: <2015-07-18 Sa>
     :PROPERTIES:
     :Created: [2015-07-14 Di 15:44]
     :Assigned_to: kordano
     :END:
-**** TODO cleanup namespaces					   :refactor:
+***** TODO cleanup namespaces 					   :refactor:
     DEADLINE: <2015-07-20 Mo>
     :PROPERTIES:
     :Created: [2015-07-13 Mo 12:40]
