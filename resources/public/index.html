@@ -11,41 +11,69 @@
 -->
 
 <style>
+#button-container{
+	display: flex;
+	align-items: center;
+	justify-content: center;
 
-
+}
+#graph-title{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#current-time
+{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
 .node circle {
-  fill: #fff;
-  stroke: steelblue;
-  stroke-width: 1.5px;
+	fill: #fff;
+	stroke: steelblue;
+	stroke-width: 1.5px;
 }
 
 .node {
-  font: 10px sans-serif;
+	font: 10px sans-serif;
+}
+
+.node circle:hover{
+	:fill #f00;
 }
 
 .link {
-  fill: none;
-  stroke: #ccc;
-  stroke-width: 1.5px;
+	fill: none;
+	stroke: #ccc;
+	stroke-width: 1.5px;
 }
 
 
 text {
-  font: bold 48px monospace;
+	font: bold 48px monospace;
 }
 
 .enter {
-  fill: green;
+	fill: green;
 }
 
 .update {
-  fill: #bbb;
+	fill: #bbb;
 }
+
+#main-container{
+	display: flex;
+	align-items: center;
+	justify-content: center; 
+}
+
 
 </style>
 <body>
+  <h2 id="graph-title">Current Broadcaster</h2>
+  <h4 id="current-time">Time</h4>
   <div id="main-container">
-    <div id="graph-container"> </div>
+    <div id="graph-container"></div>
   </div>
 
   <!--

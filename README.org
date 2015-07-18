@@ -11,8 +11,12 @@
 Not sure yet.
 
 **** TODOs
-***** TODO add stop to frontend visualization 			    :feature:
-    DEADLINE: <2015-07-18 Sa>
+***** DONE add stop to frontend visualization			    :feature:
+      CLOSED: [2015-07-18 Sa 14:26] DEADLINE: <2015-07-18 Sa>
+    :LOGBOOK:  
+    - State "DONE"       from "TODO"       [2015-07-18 Sa 14:26]
+    CLOCK: [2015-07-18 Sa 12:24]--[2015-07-18 Sa 14:26] =>  2:02
+    :END:      
     :PROPERTIES:
     :Created: [2015-07-14 Di 15:44]
     :Assigned_to: kordano
