@@ -53,7 +53,7 @@
                          (call (.-drag force)))]
       (.. node-enter
           (append "svg:circle")
-          (attr {:class "node-stroke" :r 3})
+          (attr {:class "node-stroke" :r 5})
           (style {:fill (fn [d] (color (dec (:group d))))
                   :stroke "#fff"}))
       (.. node-enter (append "title") (text (fn [d] (:value d)))))
@@ -74,7 +74,7 @@
     (.. force
         (charge -550)
         (gravity 0.5)
-        (linkDistance 7)
+        (linkDistance 15)
         (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
@@ -146,7 +146,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data 2834511})
+      (>! ws-channel {:topic :user-tree :data 5734902})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
