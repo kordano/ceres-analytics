@@ -7,6 +7,7 @@
             [compojure.core :refer [GET POST defroutes]]
             [compojure.handler :refer [site api]]
             [taoensso.timbre :refer [info debug error warn] :as timbre]
+            [clj-time.core :as t]
             [org.httpkit.server :refer [with-channel on-receive on-close run-server send!]]))
 
 (timbre/refer-timbre)
@@ -15,7 +16,7 @@
   "Dispatch incoming requests"
   [{:keys [topic data]}]
   (case topic
-    :user-tree (cascade/get-user-tree data)
+    :user-tree (cascade/get-user-tree-d3 data (t/date-time 2015 4 10) (t/date-time 2015 4 11))
     :unrelated))
 
 (defn ws-handler
@@ -46,5 +47,7 @@
   (def stop-server (run-server (site #'handler) {:port 8091 :join? false}))
 
   (stop-server)
-
+  
+  (:links (cascade/get-user-tree-d3 2834511 (t/date-time 2015 4 10 8) (t/date-time 2015 4 10 12)))
+  
   )

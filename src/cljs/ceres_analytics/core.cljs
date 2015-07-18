@@ -14,8 +14,6 @@
 
 (strokes/bootstrap)
 
-(println "Hell yeah!")
-
 (def graph-state (atom {:svg nil
                         :width 2000
                         :height 2000
@@ -119,8 +117,8 @@
   (let [nodes (get-in @state [:data :new-nodes])
         links (get-in @state [:data :new-links])]
     (println "Starting vis...")
-    (go-loop [k 5]
-      (if (= k 7)
+    (go-loop [k 10]
+      (if (= k 11)
         (println "done")
         (do
           (loop [i 0]
@@ -136,8 +134,8 @@
                       (let [k (t/interval (t/date-time 2015 4 k i j) (t/date-time 2015 4 k i (+ j 20)))
                             new-nodes (filter #(t/within? k (:ts %)) nodes)
                             new-links (filter #(t/within? k (:ts %)) links)]
-                        (doall (map #(add-node state %) new-nodes))
-                        (doall (map #(add-link state %) new-links))
+                        (when-not (empty? new-nodes) (doall (map #(add-node state %) new-nodes)))
+                        (when-not (empty? new-links) (doall (map #(add-link state %) new-links)))
                         (recur (+ j 20))))))
                 (recur (inc i)))))
           (recur (inc k)))))))
@@ -148,7 +146,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data "SPIEGELONLINE"})
+      (>! ws-channel {:topic :user-tree :data 2834511})
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in
@@ -156,15 +154,17 @@
               (println "Error on incomming message: " error)
               (do
                 (let [{:keys [nodes links]} message
-                      formated-nodes (map (fn [n] (update-in n [:ts] c/from-string)) nodes)
-                      formated-links (map (fn [l] (update-in l [:ts] c/from-string)) links)]
+                      formated-nodes (map (fn [n] (update-in n [:ts] c/from-long)) nodes)
+                      formated-links (map (fn [l] (update-in l [:ts] c/from-long)) links)]
+                  (println message)
+                  (println formatted-nodes)
+                  (println formatted-links)
                   (swap! state assoc-in [:data :new-nodes] formated-nodes)
                   (swap! state assoc-in [:data :new-links] formated-links)
                   (<! (timeout 1000))
                   (start-vis state))
                 (recur (<! ws-channel))))))
         (js/console.log "Error on connection: " (pr-str error))))))
-
 
 
 (run graph-state)

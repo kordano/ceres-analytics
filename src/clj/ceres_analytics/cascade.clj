@@ -30,6 +30,46 @@
           link)))
 
 
+(defn get-user-tree-d3
+  "Create user reaction tree"
+  [userid t0 tmax]
+  (let [user (mc/find-one-as-map @db "users" {:id userid :ts {$lt (t/date-time 2015 4 1)}})
+        user-node {:name (:_id user) :value (:name user) :group 1}
+        pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
+                                                              :ts {$gt t0 $lt tmax}})))
+        links (->> (mc/find-maps @db "sources" {:ts {$gt t0 $lt tmax} :target {$in pubs}})
+                   (pmap (fn [s]
+                           (let [original-message ((comp (fn [{:keys [source target ts]}]
+                                                           {:source target
+                                                            :target (:_id user)
+                                                            :root true
+                                                            :ts ts
+                                                            :group 2})
+                                                         #(mc/find-one-as-map @db "pubs" {:target (:_id %)})
+                                                         #(mc/find-map-by-id @db "messages" (:target %))) s)]
+                             [original-message (find-links original-message t0 tmax)]))))
+        nodes (->> links
+                   (pmap second)
+                   (apply concat)
+                   (pmap (comp (fn [{:keys [_id text group ts]}]
+                                 {:name _id :value text :group group :ts ts})
+                               (fn [{:keys [source group]}]
+                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
+    {:nodes (mapv (comp #(update-in % [:ts] c/to-long) #(update-in % [:name] str)) nodes)
+     :links (->> links
+                 (pmap
+                  (fn [[k v]]
+                    (->> v
+                         (mapv
+                          (comp
+                           (fn [l] (update-in l [:ts] c/to-long))
+                           (fn [l] (update-in l [:source] str))
+                           (fn [l] (update-in l [:target] str))))
+                         (remove (fn [l] (= (:name user-node)  (:target l)))))))
+                 (apply concat)
+                 vec)}))
+
+
 (defn get-user-tree
   "Create user reaction tree"
   [userid t0 tmax]
@@ -50,17 +90,12 @@
                                                          ) s)]
                              [original-message (find-links original-message t0 tmax)]))))
         nodes (->> links
-                    (pmap second)
-                    (apply concat)
-                    (pmap (comp (fn [{:keys [_id text group ts]}]
-                                  {:name _id :value text :group group :ts ts})
-                                (fn [{:keys [source group]}]
-                                  (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
+                   (pmap second)
+                   (apply concat)
+                   (pmap (comp (fn [{:keys [_id text group ts]}]
+                                 {:name _id :value text :group group :ts ts})
+                               (fn [{:keys [source group]}]
+                                 (assoc (mc/find-map-by-id @db "messages" source) :group group)))))]
     {:nodes (mapv #(update-in % [:name] str) nodes)
      :links (->> links
-                 (pmap
-                  (fn [[k v]] [k (remove (fn [l] (= (:name user-node)  (:target l))) v)])
-                  ;; only for frontend visualisation needed
-                  #_(comp #(mapv (comp (fn [l] (update-in l [:source] str))
-                                       (fn [l] (update-in l [:target] str))) %))) 
-                 vec)}))
+                 (pmap (fn [[k v]] [k (remove (fn [l] (= (:name user-node)  (:target l))) v)])) vec)}))
