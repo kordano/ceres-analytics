@@ -30,8 +30,8 @@
 (strokes/bootstrap)
 
 (def graph-state (atom {:svg nil
-                        :width 650
-                        :height 650
+                        :width 800
+                        :height 800
                         :frame "#graph-container"
                         :color nil
                         :force nil
@@ -161,10 +161,12 @@
   (init-graph state)
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
-          broadcaster (rand-nth (keys broadcasters))]
+          broadcaster (rand-nth (keys broadcasters))
+          random-day (rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
-      (>! ws-channel {:topic :user-tree :data broadcaster})
+      (>! ws-channel {:topic :user-tree :data {:broadcaster broadcaster :day random-day}})
       (set! (.-innerHTML (.getElementById js/document "graph-title")) (get broadcasters broadcaster))
+      (set! (.-innerHTML (.getElementById js/document "current-day")) (str random-day " April 2015"))
       (if-not error
         (loop [{:keys [message error] :as in} (<! ws-channel)]
           (when in

@@ -15,9 +15,10 @@
 (defn dispatch-request
   "Dispatch incoming requests"
   [{:keys [topic data]}]
-  (case topic
-    :user-tree (cascade/get-user-tree-d3 data (t/date-time 2015 4 10) (t/date-time 2015 4 11))
-    :unrelated))
+  (let [{:keys [broadcaster day]} data]
+    (case topic
+      :user-tree (cascade/get-user-tree-d3 broadcaster (t/date-time 2015 4 day) (t/date-time 2015 4 (inc day)))
+      :unrelated)))
 
 (defn ws-handler
   "Handle incoming websocket requests"
@@ -48,6 +49,5 @@
 
   (stop-server)
   
-  (:links (cascade/get-user-tree-d3 2834511 (t/date-time 2015 4 10 8) (t/date-time 2015 4 10 12)))
   
   )

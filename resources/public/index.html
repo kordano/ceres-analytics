@@ -28,6 +28,12 @@
 	align-items: center;
 	justify-content: center;
 }
+#current-day
+{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
 .node circle {
 	fill: #fff;
 	stroke: steelblue;
@@ -71,7 +77,7 @@ text {
 </style>
 <body>
   <h2 id="graph-title">Current Broadcaster</h2>
-  <h4 id="current-time">Time</h4>
+  <h4> <span id="current-time">Time</span> <span id="current-day"></span> </h4>
   <div id="main-container">
     <div id="graph-container"></div>
   </div>
