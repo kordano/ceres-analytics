@@ -132,9 +132,10 @@
 
 (defn start-vis [state]
   (let [nodes (get-in @state [:data :new-nodes])
-        links (get-in @state [:data :new-links])]
-    (go-loop [k 10]
-      (if (= k 11)
+        links (get-in @state [:data :new-links])
+        day (get-in @state [:day])]
+    (go-loop [k day]
+      (if (= k (inc day))
         (set! (.-innerHTML (.getElementById js/document "current-time")) "DONE")
         (do
           (loop [i 0]
@@ -164,6 +165,7 @@
           broadcaster (rand-nth (keys broadcasters))
           random-day (rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
+      (swap! state assoc-in [:day] random-day)
       (>! ws-channel {:topic :user-tree :data {:broadcaster broadcaster :day random-day}})
       (set! (.-innerHTML (.getElementById js/document "graph-title")) (get broadcasters broadcaster))
       (set! (.-innerHTML (.getElementById js/document "current-day")) (str random-day " April 2015"))
