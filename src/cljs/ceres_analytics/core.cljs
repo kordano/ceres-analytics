@@ -30,8 +30,8 @@
 (strokes/bootstrap)
 
 (def graph-state (atom {:svg nil
-                        :width 2048
-                        :height 2048
+                        :width 1024
+                        :height 1024
                         :frame "#graph-container"
                         :color nil
                         :force nil
@@ -65,7 +65,7 @@
 (defn update-graph
   "Updates nodes and links in graph"
   [state]
-  (let [{:keys [svg width height data force color circle-size link-dist]} @state
+  (let [{:keys [svg width height data force color circle-size link-dist link-charge node-gravity]} @state
         link (.. svg
                  (selectAll ".link")
                  (data (:links data)))
@@ -103,8 +103,8 @@
                            :cy #(.-y %)}
                         {:transform #(str "translate(" (.-x %) "," (.-y %) ")")})))))
     (.. force
-        (charge -550)
-        (gravity 0.5)
+        (charge link-charge)
+        (gravity node-gravity)
         (linkDistance link-dist)
         (friction 0.1)
         (size [width height])
@@ -144,7 +144,10 @@
     (swap! state assoc-in [:force] force)
     (swap! state assoc-in [:circle-size] (/ height 256))
     (swap! state assoc-in [:link-dist] (/ height 128))
+    (swap! state assoc-in [:link-charge] (* 8 (/ -100000 height)))
+    (swap! state assoc-in [:node-gravity] (/ 400 height))
     (swap! state assoc-in [:color] ["purple" "steelblue" "orange" "green" "red" ])
+    (println (select-keys @state [:circle-size :link-dist :link-charge]))
     (update-graph state)))
 
 
