@@ -47,6 +47,21 @@
       remove))
 
 
+(defn draw-border
+  "Draw dark borders around visible field"
+  [state]
+  (let [{:keys [svg width height]} @state]
+    (.. svg
+        (append "rect")
+        (attr {:x 0
+               :y 0
+               :width width
+               :height height})
+        (style {:stroke "#000000"
+                :fill "none"
+                :stroke-width 5}))))
+
+
 (defn update-graph
   "Updates nodes and links in graph"
   [state]
@@ -57,6 +72,7 @@
         node (.. svg
                  (selectAll "g.node")
                  (data (:nodes data)))]
+    (draw-border state)
     (.. link enter (append "line")
         (attr {:class "link"})
         (style {:stroke-width 1 :stroke "#aaa"}))
@@ -162,8 +178,8 @@
   (init-graph state)
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
-          broadcaster (rand-nth (keys broadcasters))
-          random-day (rand-int 31)]
+          broadcaster 2834511 #_(rand-nth (keys broadcasters))
+          random-day 24 #_(rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
       (swap! state assoc-in [:day] random-day)
       (>! ws-channel {:topic :user-tree :data {:broadcaster broadcaster :day random-day}})
