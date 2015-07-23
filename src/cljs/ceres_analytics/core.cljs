@@ -30,8 +30,8 @@
 (strokes/bootstrap)
 
 (def graph-state (atom {:svg nil
-                        :width 800
-                        :height 800
+                        :width 2048
+                        :height 2048
                         :frame "#graph-container"
                         :color nil
                         :force nil
@@ -57,15 +57,15 @@
                :y 0
                :width width
                :height height})
-        (style {:stroke "#000000"
+        (style {:stroke "#777777"
                 :fill "none"
-                :stroke-width 5}))))
+                :stroke-width 3}))))
 
 
 (defn update-graph
   "Updates nodes and links in graph"
   [state]
-  (let [{:keys [svg width height data force color]} @state
+  (let [{:keys [svg width height data force color circle-size link-dist]} @state
         link (.. svg
                  (selectAll ".link")
                  (data (:links data)))
@@ -84,7 +84,7 @@
                          (call (.-drag force)))]
       (.. node-enter
           (append "svg:circle")
-          (attr {:class "node-stroke" :r 4})
+          (attr {:class "node-stroke" :r circle-size})
           (style {:fill (fn [d] (color (dec (:group d))))
                   :stroke "#fff"}))
       (.. node-enter (append "title") (text (fn [d] (:value d)))))
@@ -105,7 +105,7 @@
     (.. force
         (charge -550)
         (gravity 0.5)
-        (linkDistance 10)
+        (linkDistance link-dist)
         (friction 0.1)
         (size [width height])
         (nodes (:nodes data))
@@ -142,6 +142,8 @@
                                              :id "graph-svg"
                                              :height height})))
     (swap! state assoc-in [:force] force)
+    (swap! state assoc-in [:circle-size] (/ height 256))
+    (swap! state assoc-in [:link-dist] (/ height 128))
     (swap! state assoc-in [:color] ["purple" "steelblue" "orange" "green" "red" ])
     (update-graph state)))
 
