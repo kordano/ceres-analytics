@@ -50,9 +50,9 @@
          [:scale_y_log10]
          [:guides {:fill "none"}]
          [:xlab "Broadcaster"]
-         [:ylab "Temporal distance in minutes"]
+         [:ylab "Flooding time in minutes"]
          [:theme_bw]
-         [:ggtitle "Average temporal distance"])]
+         [:ggtitle "Average flooding time"])]
       {:width 12 :height 6 }))  
 ;; @@
 ;; =>
@@ -81,7 +81,7 @@
          [:xlab "Day"]
          [:ylab "Hours"]
          [:theme_bw]
-         [:ggtitle (str "Average temporal distance evolution of " (element-name author))])]
+         [:ggtitle (str "Average fllotding time evolution of " (element-name author))])]
       {:width 5 :height 5})))
 ;; @@
 ;; =>
@@ -104,7 +104,7 @@
          [:xlab "Day"]
          [:ylab "Minutes"]
          [:theme_bw]
-         [:ggtitle "Average temporal distance evolution"])]
+         [:ggtitle "Average flooding time evolution"])]
       {:width 5 :height 5}))
 ;; @@
 ;; =>
