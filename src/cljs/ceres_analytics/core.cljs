@@ -35,6 +35,7 @@
                         :frame "#graph-container"
                         :color nil
                         :force nil
+                        :time-controller (chan)
                         :node->index {}
                         :data {:nodes []
                                :links []}}))
@@ -62,10 +63,19 @@
                 :stroke-width 3}))))
 
 
+(set! (.. d3 -selection -prototype -moveToFront)
+      (fn []
+        (this-as this
+                 (.each this (fn []
+                               (this-as this
+                                        (.. this -parentNode (appendChild this))))))))
+
+
+
 (defn update-graph
   "Updates nodes and links in graph"
   [state]
-  (let [{:keys [svg width height data force color circle-size link-dist link-charge node-gravity]} @state
+  (let [{:keys [svg width height data force color circle-size link-dist link-charge node-gravity line-weight]} @state
         link (.. svg
                  (selectAll ".link")
                  (data (:links data)))
@@ -75,7 +85,7 @@
     (draw-border state)
     (.. link enter (append "line")
         (attr {:class "link"})
-        (style {:stroke-width 1 :stroke "#aaa"}))
+        (style {:stroke-width line-weight :stroke "#777777"}))
     (.. link exit remove)
     (let [node-enter (.. node
                          enter
@@ -110,7 +120,11 @@
         (size [width height])
         (nodes (:nodes data))
         (links (:links data))
-        start))
+        start)
+    (.. d3
+        (selectAll "g.node")
+        moveToFront)
+    )
   state)
 
 
@@ -142,10 +156,11 @@
                                              :id "graph-svg"
                                              :height height})))
     (swap! state assoc-in [:force] force)
-    (swap! state assoc-in [:circle-size] (/ height 256))
+    (swap! state assoc-in [:circle-size] (/ height 200))
     (swap! state assoc-in [:link-dist] (/ height 128))
     (swap! state assoc-in [:link-charge] (* 8 (/ -100000 height)))
     (swap! state assoc-in [:node-gravity] (/ 400 height))
+    (swap! state assoc-in [:line-weight] (/ height 512))
     (swap! state assoc-in [:color] ["purple" "steelblue" "orange" "green" "red" ])
     (println (select-keys @state [:circle-size :link-dist :link-charge]))
     (update-graph state)))
@@ -154,7 +169,12 @@
 (defn start-vis [state]
   (let [nodes (get-in @state [:data :new-nodes])
         links (get-in @state [:data :new-links])
-        day (get-in @state [:day])]
+        day (get-in @state [:day])
+        cntrl (get-in @state [:time-controller])]
+    (set! (.-onkeydown js/document)
+          (fn [e]
+            (when (= (.-keyCode e) 78)
+              (go (>! cntrl true)))))
     (go-loop [k day]
       (if (= k (inc day))
         (set! (.-innerHTML (.getElementById js/document "current-time")) "DONE")
@@ -168,7 +188,7 @@
                     nil
                     (do
                       (set! (.-innerHTML (.getElementById js/document "current-time")) (str "Time: " i ":" (if (= j 0) "00" j)))
-                      (<! (timeout 2000))
+                      (<! cntrl)
                       (let [k (t/interval (t/date-time 2015 4 k i j) (t/date-time 2015 4 k i (+ j 20)))
                             new-nodes (filter #(t/within? k (:ts %)) nodes)
                             new-links (filter #(t/within? k (:ts %)) links)]
@@ -184,7 +204,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
           broadcaster 2834511 #_(rand-nth (keys broadcasters))
-          random-day 24 #_(rand-int 31)]
+          random-day 27 #_(rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
       (swap! state assoc-in [:day] random-day)
       (>! ws-channel {:topic :user-tree :data {:broadcaster broadcaster :day random-day}})
