@@ -161,7 +161,7 @@
     (swap! state assoc-in [:link-charge] (* 8 (/ -100000 height)))
     (swap! state assoc-in [:node-gravity] (/ 400 height))
     (swap! state assoc-in [:line-weight] (/ height 512))
-    (swap! state assoc-in [:color] ["purple" "steelblue" "orange" "green" "red" ])
+    (swap! state assoc-in [:color] ["purple" "#6c71c4" "#2aa198" "#859900" "#d33682" ])
     (println (select-keys @state [:circle-size :link-dist :link-charge]))
     (update-graph state)))
 
