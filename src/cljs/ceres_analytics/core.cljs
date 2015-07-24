@@ -63,12 +63,6 @@
                 :stroke-width 3}))))
 
 
-(set! (.. d3 -selection -prototype -moveToFront)
-      (fn []
-        (this-as this
-                 (.each this (fn []
-                               (this-as this
-                                        (.. this -parentNode (appendChild this))))))))
 
 
 
@@ -148,6 +142,12 @@
 (defn init-graph [state]
   (let [{:keys [width height frame data]} @state
         force (.. d3 -layout force)]
+    (set! (.. d3 -selection -prototype -moveToFront)
+      (fn []
+        (this-as this
+                 (.each this (fn []
+                               (this-as this
+                                        (.. this -parentNode (appendChild this))))))))
     (swap! state assoc-in [:svg] (.. d3
                                       (select frame)
                                       (append "svg")
@@ -204,7 +204,7 @@
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
           broadcaster 2834511 #_(rand-nth (keys broadcasters))
-          random-day 27 #_(rand-int 31)]
+          random-day 8 #_(rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
       (swap! state assoc-in [:day] random-day)
       (>! ws-channel {:topic :user-tree :data {:broadcaster broadcaster :day random-day}})
