@@ -11,6 +11,11 @@
 -->
 
 <style>
+#header-items{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
 #button-container{
 	display: flex;
 	align-items: center;
@@ -21,18 +26,22 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 0 2em 0 2em;
+	font-size: 2em;
 }
 #current-time
 {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 0 2em 0 2em;
 }
 #current-day
 {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 0 2em 0 2em;
 }
 .node circle {
 	fill: #fff;
@@ -76,8 +85,11 @@ text {
 
 </style>
 <body>
-  <h2 id="graph-title">Current Broadcaster</h2>
-  <h4> <span id="current-time">Time</span> <span id="current-day"></span> </h4>
+  <div id="header-items">
+    <h3 id="graph-title">Current Broadcaster</h2>
+    <h3 id="current-time">Time </h4>
+    <h3 id="current-day"></h4>
+  </div>
   <div id="main-container">
     <div id="graph-container"></div>
   </div>

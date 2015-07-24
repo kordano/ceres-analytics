@@ -187,7 +187,7 @@
                   (if (= j 60)
                     nil
                     (do
-                      (set! (.-innerHTML (.getElementById js/document "current-time")) (str "Time: " i ":" (if (= j 0) "00" j)))
+                      (set! (.-innerHTML (.getElementById js/document "current-time")) (str  i ":" (if (= j 0) "00" j)))
                       (<! cntrl)
                       (let [k (t/interval (t/date-time 2015 4 k i j) (t/date-time 2015 4 k i (+ j 20)))
                             new-nodes (filter #(t/within? k (:ts %)) nodes)
