@@ -173,7 +173,7 @@
         cntrl (get-in @state [:time-controller])]
     (set! (.-onkeydown js/document)
           (fn [e]
-            (when (= (.-keyCode e) 78)
+            (when (= (.-keyCode e) 222)
               (go (>! cntrl true)))))
     (go-loop [k day]
       (if (= k (inc day))
@@ -203,7 +203,7 @@
   (init-graph state)
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:8091/data/ws"))
-          broadcaster 2834511 #_(rand-nth (keys broadcasters))
+          broadcaster (rand-nth (keys broadcasters))
           random-day 8 #_(rand-int 31)]
       (swap! state assoc-in [:ws-channel] ws-channel)
       (swap! state assoc-in [:day] random-day)

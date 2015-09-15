@@ -17,6 +17,7 @@
          ^ServerAddress sa  (mg/server-address (or (System/getenv "DB_PORT_27017_TCP_ADDR") "127.0.0.1") 27017)]
      (mg/get-db (mg/connect sa opts) "juno"))))
 
+
 (def broadcasters
   {2834511 "Spiegel"
    5494392 "Focus"

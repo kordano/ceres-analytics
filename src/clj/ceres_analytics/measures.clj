@@ -425,6 +425,9 @@
        (pmap (fn [[c1 c2]]
                (t/in-seconds (t/interval c1 c2)))))
 
+
+  (mc/count @db "users")
+  
   (ap)
 
   (->> (inter-contact-times cascades t0 tmax :evolution)

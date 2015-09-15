@@ -48,10 +48,16 @@
   :cljsbuild
   {:builds
    [{:source-paths ["src/cljs"]
+     :id "dev"
      :compiler
      {:output-to "resources/public/js/compiled/main.js"
       :output-dir "resources/public/js/compiled/out"
       :optimizations :none
       :pretty-print false
-      :source-map "main.js.map"}}]}
+      :source-map "main.js.map"}}
+    {:source-paths ["src/cljs"]
+     :id "min"
+     :compiler
+     {:output-to "resources/public/js/compiled/analytics.min.js"
+      :optimizations :advanced}}]}
   )

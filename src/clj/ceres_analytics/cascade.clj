@@ -76,6 +76,7 @@
   (let [user (mc/find-one-as-map @db "users" {:id userid :ts {$lt (t/date-time 2015 4 1)}})
         user-node {:name (:_id user) :value (:name user) :group 1}
         pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user)
+                                                              :target {$ne nil}
                                                               :ts {$gt t0 $lt tmax}})))
         links (->> (mc/find-maps @db "sources" {:ts {$gt t0 $lt tmax} :target {$in pubs}})
                    (pmap (fn [s]
@@ -99,3 +100,16 @@
     {:nodes (mapv #(update-in % [:name] str) nodes)
      :links (->> links
                  (pmap (fn [[k v]] [k (remove (fn [l] (= (:name user-node)  (:target l))) v)])) vec)}))
+
+
+(comment
+
+  (def t0 (t/date-time 2015 4 8))
+  (def tmax (t/date-time 2015 4 8 23 59 59))
+  (def userid 2834511  )
+  (def user (mc/find-one-as-map @db "users" {:id userid :ts {$lt (t/date-time 2015 4 1)}}))
+  (def pubs (into #{} (map :target (mc/find-maps @db "pubs" {:source (:_id user) :target {$ne nil} :ts {$gt t0 $lt tmax}}))))
+
+  
+ 
+  )
